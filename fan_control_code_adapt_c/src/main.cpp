@@ -14,25 +14,18 @@
 #include "gyro_scope.h"
 #include "MQTT_server.h"
 
-struct Attitude
-{
-    double roll  = 0;
-    double pitch = 0;
-    double yaw   = 0;
-};
+msmserial::MsMSerial msm_serial("COM7", 115200);  //串口
 
-struct AngularVel
-{
-    double wx = 0, wy = 0, wz = 0;
-};
-
-MsMSerial msm_serial("COM7", 115200);  //串口
+GyroScope gyro(&msm_serial);
+LeadScrewController leadscrew(&msm_serial);
+Wheel wheel(&msm_serial);
+Fan fan(&msm_serial);
 
 /* ---------------- 线程任务 ---------------- */
 void do_balance_task(MassCenterBalancer& balancer)
 {
     std::cout << "执行自动调平算法...\n";
-    std::vector<int32_t> action{-100000};
+    std::vector<float> action{-100000};
     balancer.leadscrew().move_to(action);   // 先降 Z 轴质量块
     balancer.balance_both_axes_fan();
     balancer.balance_z_axes_fan();
@@ -50,12 +43,6 @@ void do_attitude_control_task(AttitudePDController& controller,
 /* ---------------- main ---------------- */
 int main()
 {
-    asio::io_context io;
-    GyroScope      gyro(io, "COM7", 115200);
-    LeadScrewController leadscrew(io);
-    Wheel   wheel(io);
-    Fan    fan(io);
-
     AttitudePDController controller(wheel, gyro, fan);
     MassCenterBalancer balancer(leadscrew, gyro, wheel, controller);
 

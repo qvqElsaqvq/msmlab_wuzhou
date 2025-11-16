@@ -8,12 +8,50 @@
 #include "serialPro/serialPro.h"
 
 message_data Head {
-    uint8_t frame_head; // 0x4D,0x14
-    uint8_t command; // 0,1,2,3
+    uint8_t frame_head; // 0xFF,0xFE
+    uint8_t command; // 0,1,2,3,4,5
 };
 
 message_data Tail {
     uint8_t checksum; //异或
+};
+
+message_data FanControl{
+    uint8_t device_id;  // 设备号 00
+    uint8_t direction;  // 后三位分别表示x，y，z的力的方向，0表示正向，1表示负向。例如：04（0000 0100）表示x负向，y，z正向
+    uint8_t torque_x;  // X轴方向推力大小
+    uint8_t torque_y;  // Y轴方向推力大小
+    uint8_t torque_z;  // Z轴方向推力大小
+};
+
+message_data WheelControl{
+    uint8_t device_id;  // 设备编号 01/02/03（动量轮）
+    uint8_t direction;  // 动量轮旋转方向 55（正向）、AA（反向）
+    uint8_t current;  // 动量轮电流 符号字符型*100
+};
+
+message_data LeadScrewControl{
+    uint8_t device_id;  // 设备编号
+    float dist_x;  // 质量块x移动距离
+    float dist_y;  // 质量块y移动距离
+    float dist_z;  // 质量块z移动距离
+};
+
+message_data GyroScopeData{
+    uint8_t device_id;  // 设备号 00
+    int16_t wx; // 4~5  角速度wx ×100
+    int16_t wy; // 6~7 角速度wy ×100
+    int16_t wz; // 8~9 角速度wz ×100
+    int16_t yaw; // 10~11 偏航角 ×100
+    int16_t pitch; // 12~13 俯仰角 ×100
+    int16_t roll; // 14~15 滚转角 ×100
+};
+
+message_data WheelData{
+    uint8_t device_id;  // 设备编号 01/02/03（动量轮）
+    uint8_t direction;  // 动量轮旋转方向 55（正向）、AA（反向）
+    uint8_t speed;  // 动量轮转速 0x01F4-0x1388 （对应500-5000rpm）
+    uint8_t reserve;  // 保留
 };
 
 // 平面气浮台传上位机指令格式

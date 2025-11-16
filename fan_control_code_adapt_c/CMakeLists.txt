@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.22.1)
 project(fan_control_code_adapt_c)
 
 set(CMAKE_CXX_STANDARD 17)

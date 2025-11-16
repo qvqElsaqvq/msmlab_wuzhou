@@ -15,17 +15,10 @@ void Fan::sendFrame(const std::array<uint8_t, 8> &payload) {
     for (size_t i = 0; i < 10; ++i) xorVal ^= frame[i];
     frame[10] = xorVal;
 
-    ser_.write(frame);
+    ser_.write(0x02, frame);
 }
 
-void Fan::setPWM(const std::array<uint8_t, 8> &pwm) {
-    std::array<uint8_t, 8> data{};
-    for (size_t i = 0; i < 8; ++i)
-        data[i] = clampByte(pwm[i]) + 10; // 与 Python 保持一致
-    sendFrame(data);
-}
-
-void Fan::setTorque(float tx, float ty, float tz) {
+void Fan::sendTorque(float tx, float ty, float tz) {
     uint8_t dir = 0;
     if (tx < 0) dir |= 1 << 2;
     if (ty < 0) dir |= 1 << 1;
@@ -36,11 +29,17 @@ void Fan::setTorque(float tx, float ty, float tz) {
         return static_cast<uint8_t>(std::min(255, std::max(0, iv)));
     };
 
-    std::array<uint8_t, 8> data{};
-    data[0] = dir;
-    data[1] = toUint8_100(tx);
-    data[2] = toUint8_100(ty);
-    data[3] = toUint8_100(tz);
-    // data[4..7] 保持 0
-    sendFrame(data);
+    FanControl fan_control{
+        .device_id = 0x00,
+        .direction = dir,
+        .torque_x = toUint8_100(tx),
+        .torque_y = toUint8_100(ty),
+        .torque_z = toUint8_100(tz),
+    };
+    ser_.write(0x01, fan_control);
+}
+
+Fan::Fan(msmserial::MsMSerial& serial)
+{
+    ser_ = std::move(serial);
 }
