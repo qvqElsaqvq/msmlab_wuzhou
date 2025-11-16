@@ -13,7 +13,7 @@
 #include "cpp/INIReader.h"
 #include "serial.h"
 
-class callback : public virtual mqtt::callback,
+class MQTTServer : public virtual mqtt::callback,
                  public virtual mqtt::iaction_listener {
     void on_failure(const mqtt::token &tok) override {
         std::cout << "Connection failed!" << std::endl;

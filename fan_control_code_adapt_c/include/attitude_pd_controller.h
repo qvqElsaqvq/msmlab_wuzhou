@@ -90,6 +90,8 @@ public:
 
     /// 传入目标欧拉角（ZYX，单位 度）
     void setAttitudeInBalancing(const Vec3& eulerAngleDeg);
+    /// 供外部读取当前扭矩
+    Vec3 getTorque();
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_ATTITUDE_PD_CONTROLLER_H
