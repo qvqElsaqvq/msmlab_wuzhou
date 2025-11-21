@@ -7,6 +7,7 @@
 
 #include "serialPro/serialPro.h"
 
+/* 平面气浮台和C板通信部分 */
 message_data Head {
     uint8_t frame_head; // 0xFF,0xFE
     uint8_t command; // 0,1,2,3,4,5
@@ -54,10 +55,17 @@ message_data WheelData{
     uint8_t reserve;  // 保留
 };
 
+/* 平面气浮台和上位机MQTT通信部分 */
+message_data UP_Head {
+    uint8_t frame_head; // 0x4D,0x47
+    uint8_t command; // 0,1,2,3,4,5
+};
+
 // 平面气浮台传上位机指令格式
 message_data PlaneData {
+    uint8_t frame_head; // 0x4D,0x47
     uint8_t device_id; // 3    设备号
-    uint8_t platform_type; // 4    气浮台类型 0xF1/0xF2
+    uint8_t platform_type; // 4    气浮台类型 0xF1(平面气浮台)/0xF2(姿态气浮台)
     uint8_t cmd_count; // 5    指令计数
     uint8_t file_count; // 6    文件数
     uint8_t platform_status; // 7    气浮台状态 00执行中 01停机
@@ -90,10 +98,12 @@ message_data PlaneData {
     int16_t torque_pitch; // 47~48 俯仰力矩 ×100
     int16_t torque_roll; // 49~50 滚转力矩 ×100
     uint8_t reserved[10]; // 51~60 保留
+    uint8_t checksum; //异或
 };
 
 // 上位机传平面气浮台基础指令
 message_data CmdPlaneBasic {
+    uint8_t frame_head; // 0x1D,0x97
     uint8_t device_id; // 3    设备号
     uint8_t cmd_type; // 4    指令类型 0x10
     int16_t pos_x; // 5~6  位置x ×100
@@ -102,20 +112,25 @@ message_data CmdPlaneBasic {
     int16_t yaw; // 11~12 偏航角 ×100
     int16_t pitch; // 13~14 俯仰角 ×100
     int16_t roll; // 15~16 滚转角 ×100
+    uint8_t checksum; //异或
 };
 
 // 上位机传平面气浮内置轨迹指令
 message_data CmdPlaneTrajectory {
+    uint8_t frame_head; // 0x1D,0x97
     uint8_t device_id; // 3    设备号
     uint8_t cmd_type; // 4    指令类型 0x11
     uint8_t traj_id; // 5    内置轨迹ID 01/02/03
     uint8_t start; // 6    00不开始 01开始
+    uint8_t checksum; //异或
 };
 
 // 上位机传平面气浮台开关机指令
 message_data CmdPlanePower {
+    uint8_t frame_head; // 0x1D,0x97
     uint8_t device_id; // 3    设备号
     uint8_t cmd_type; // 4    0x00执行中 0x01停机
+    uint8_t checksum; //异或
 };
 
 message_data Plane {

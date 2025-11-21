@@ -37,7 +37,7 @@ void do_balance_task(MassCenterBalancer& balancer)
 void do_attitude_control_task(AttitudePDController& controller,
                               const Attitude& target)
 {
-    std::cout << "执行姿态控制算法(rpy)：" << target.roll << target.pitch << target.yaw << std::endl;
+    std::cout << "执行姿态控制算法" << std::endl;
     Vec3 euler_angle_target(target.roll, target.pitch, target.yaw);
     controller.setAttitudeInBalancing(euler_angle_target);
     std::cout << "姿态控制完成\n";
@@ -49,7 +49,7 @@ int main()
     AttitudePDController controller(wheel, gyro, fan);
     MassCenterBalancer balancer(leadscrew, gyro, wheel, controller);
 
-    MQTTServer mqtt("192.168.31.81", 1883,
+    MQTTServer mqtt("192.168.31.81", 1883, "1",
                     "satellite/data",
                     "satellite/cmd");
     mqtt.start();
