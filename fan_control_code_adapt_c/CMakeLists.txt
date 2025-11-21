@@ -24,14 +24,5 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
 
 target_include_directories(inih PUBLIC thirdparty/inih)
 
-add_executable(fan_control_code_adapt_c
-        src/main.cpp
-        src/gyro_scope.cpp
-        src/fan.cpp
-        src/attitude_pd_controller.cpp
-        src/MQTT_server.cpp
-        src/leadscrew_controller.cpp
-        src/mass_center_balancer.cpp
-        src/wheel.cpp
-)
-target_link_libraries(fan_control_code_adapt_c serialPro pthread paho-mqttpp3 paho-mqtt3as inih)
+add_executable(fan_control_code_adapt_c ${SRC_FILES})
+target_link_libraries(fan_control_code_adapt_c serialPro pthread paho-mqttpp3 paho-mqtt3as inih serialib)

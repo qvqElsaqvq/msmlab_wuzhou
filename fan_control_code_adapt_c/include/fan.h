@@ -13,9 +13,7 @@
 class Fan
 {
 private:
-    msmserial::MsMSerial ser_;
-
-    void sendFrame(const std::array<uint8_t, 8> &payload);
+    msmserial::MsMSerial& ser_;
 
 public:
     explicit Fan(msmserial::MsMSerial &serial);

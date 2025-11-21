@@ -35,7 +35,7 @@ public:
     void setAttitude(double roll, double pitch, double yaw);
 
 private:
-    msmserial::MsMSerial ser_;
+    msmserial::MsMSerial& ser_;
 
     Vec3 latestAngularVel_{};           // 角速度
     Vec3 latestAttitude_{};             // 姿态角

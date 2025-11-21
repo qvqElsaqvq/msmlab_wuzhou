@@ -31,7 +31,8 @@ public:
     using Vec3 = Eigen::Vector3d;
     using Quat = Eigen::Quaterniond;
 
-    explicit MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewController& lscrew_controller, Wheel& wheel, AttitudePDController& attitude_controller);
+    explicit MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewController& lscrew_controller, Wheel& wheel,
+                                AttitudePDController& attitude_controller);
 
     /// XY 调平总入口
     void balance_xy_fan();
@@ -62,11 +63,11 @@ public:
     void wait_steady_and_sample_outputs();
 
 private:
-    GyroScope gyro_;
-    LeadScrewController leadscrew_;
-    Wheel wheel_;
-    Fan fan_;
-    AttitudePDController controller_;
+    GyroScope& gyro_;
+    LeadScrewController& leadscrew_;
+    Wheel& wheel_;
+    Fan& fan_;
+    AttitudePDController& controller_;
 
     // 配置参数
     const std::array<uint8_t,3> axis_ids_{0x04,0x05,0x06};

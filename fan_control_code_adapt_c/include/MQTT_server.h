@@ -14,7 +14,7 @@
 #include "cpp/INIReader.h"
 #include "serial.h"
 
-INIReader ini("config.ini");
+extern INIReader ini;
 
 class CallBack : public virtual mqtt::callback,
                  public virtual mqtt::iaction_listener

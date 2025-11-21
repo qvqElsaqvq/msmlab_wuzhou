@@ -20,8 +20,8 @@ using Quat = Eigen::Quaterniond;
 class AttitudePDController
 {
 private:
-    GyroScope gyro_;
-    Fan fan_;
+    GyroScope& gyro_;
+    Fan& fan_;
 
     /* ====== 增益 ====== */
     Vec3 Kp_;

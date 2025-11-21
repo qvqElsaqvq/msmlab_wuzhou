@@ -4,20 +4,6 @@
 
 #include "fan.h"
 
-void Fan::sendFrame(const std::array<uint8_t, 8> &payload) {
-    std::array<uint8_t, 11> frame{};
-    frame[0] = 0xFF;
-    frame[1] = 0xFE;
-    frame[2] = 0x00;
-    std::copy(payload.begin(), payload.end(), frame.begin() + 3);
-
-    uint8_t xorVal = 0;
-    for (size_t i = 0; i < 10; ++i) xorVal ^= frame[i];
-    frame[10] = xorVal;
-
-    ser_.write(0x02, frame);
-}
-
 void Fan::sendTorque(float tx, float ty, float tz) {
     uint8_t dir = 0;
     if (tx < 0) dir |= 1 << 2;
@@ -37,9 +23,11 @@ void Fan::sendTorque(float tx, float ty, float tz) {
         .torque_z = toUint8_100(tz),
     };
     ser_.write(0x01, fan_control);
+    std::cout << "[Fan] Sending direction=" << dir << ", torque_x=" << fan_control.torque_x << ", torque_y="
+        << fan_control.torque_y << ", torque_z=" << fan_control.torque_z << std::endl;
 }
 
-Fan::Fan(msmserial::MsMSerial& serial)
+Fan::Fan(msmserial::MsMSerial& serial): ser_(serial)
 {
-    ser_ = std::move(serial);
+    std::cout << "Fan::Fan init" << std::endl;
 }

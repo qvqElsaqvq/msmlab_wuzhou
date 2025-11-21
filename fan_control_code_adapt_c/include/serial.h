@@ -2,6 +2,9 @@
 // Created by mijiao on 2025/10/31.
 //
 
+#ifndef FAN_CONTROL_CODE_ADAPT_C_SERIAL_H
+#define FAN_CONTROL_CODE_ADAPT_C_SERIAL_H
+
 #include "message.h"
 
 #include <iostream>
@@ -59,7 +62,7 @@ namespace msmserial
                 case 0x3:
                     return sizeof(CmdPlanePower);
                 default:
-                    return 1ull;
+                    return 1ul;
                 }
             });
 
@@ -80,3 +83,5 @@ namespace msmserial
         }
     };
 }
+
+#endif //FAN_CONTROL_CODE_ADAPT_C_SERIAL_H

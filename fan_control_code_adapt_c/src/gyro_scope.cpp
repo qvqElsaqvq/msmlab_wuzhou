@@ -18,13 +18,14 @@ void GyroScope::setAttitude(double roll, double pitch, double yaw)
     latestAttitude_.z = yaw;
 }
 
-GyroScope::GyroScope(msmserial::MsMSerial& msm_serial)
+GyroScope::GyroScope(msmserial::MsMSerial& msm_serial): ser_(msm_serial)
 {
-    ser_ = std::move(msm_serial);
-
     ser_.registerCallback(0x04, [this](const GyroScopeData& msg)
     {
         setAngularVelocity(msg.wx, msg.wy, msg.wz);
         setAttitude(msg.roll, msg.pitch, msg.yaw);
+
+        std::cout << "[GyroScope receive] wx=" << msg.wx << ", wy=" << msg.wy << ", wz=" << msg.wz << std::endl;
+        std::cout << "[GyroScope receive] roll=" << msg.roll << ", pitch=" << msg.pitch << ", yaw=" << msg.yaw << std::endl;
     });
 }

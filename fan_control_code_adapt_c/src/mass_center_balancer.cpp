@@ -82,15 +82,15 @@ void MassCenterBalancer::deactivate_motors()
 void MassCenterBalancer::balance_both_axes_fan()
 {
     bool flag_x = false, flag_y = false; // 是否已经配平完成
-    double prev_dir_x = 0.0, prev_dir_y = 0.0; // 预设质量块的移动方向
+    int prev_dir_x = 0, prev_dir_y = 0; // 预设质量块的移动方向
 
     /* 扭矩→步长比例与阈值（按需现场标定） */
     // 回升力矩较大时的扭矩→步长比例
-    double kx_max = 1000.0, ky_max = 1000.0; // step/Nm（示例系数，后续可在现场用相同口径微调）
-    double min_step_max = 200.0, max_step_max = 8000.0;
+    int kx_max = 1000, ky_max = 1000; // step/Nm（示例系数，后续可在现场用相同口径微调）
+    int min_step_max = 200, max_step_max = 8000;
     // 回升力矩较小时的扭矩→步长比例
-    double kx_min = 250.0, ky_min = 250.0;
-    double min_step_min = 20.0, max_step_min = 3000.0; // step/Nm（示例系数，后续可在现场用相同口径微调）
+    int kx_min = 250, ky_min = 250;
+    int min_step_min = 20, max_step_min = 3000; // step/Nm（示例系数，后续可在现场用相同口径微调）
 
     // 分段：1.5-3.0, 3.0-10.0+
     double torque_done = 1.5; // 稳态输出阈值（Nm），小于则认定该轴已足够好
@@ -140,7 +140,7 @@ void MassCenterBalancer::balance_both_axes_fan()
 
                 // 3. 计算丝杠移动步长与方向（反向补偿：输出>0 → 质量块朝负向移动）
                 double kx, ky;
-                double min_step_x, min_step_y, max_step_x, max_step_y;
+                int min_step_x, min_step_y, max_step_x, max_step_y;
                 if (std::abs(tx_mean_) >= torque_xy_threshold)
                 {
                     kx = kx_max;
@@ -170,9 +170,9 @@ void MassCenterBalancer::balance_both_axes_fan()
                 if (!flag_x)
                 {
                     int dir_x = (tx_mean_ > 0) ? -1 : +1;
-                    int mag = static_cast<int>(std::clamp(std::abs(tx_mean_) * kx, min_step_x, max_step_x));
+                    int mag = static_cast<int>(std::clamp(int(std::abs(tx_mean_) * kx), min_step_x, max_step_x));
                     if (prev_dir_x != 0 && dir_x != prev_dir_x)
-                        mag = std::max(min_step_x, mag / 3);
+                        mag = std::max(min_step_x, int(mag / 3));
 
                     steps[0] = dir_x * mag;
                     prev_dir_x = dir_x;
@@ -180,10 +180,10 @@ void MassCenterBalancer::balance_both_axes_fan()
                 if (!flag_y)
                 {
                     int dir_y = (ty_mean_ > 0) ? +1 : -1;
-                    int mag = static_cast<int>(std::clamp(std::abs(ty_mean_) * ky * 0.75,
+                    int mag = static_cast<int>(std::clamp(int(std::abs(ty_mean_) * ky * 0.75),
                                                           min_step_y, max_step_y));
                     if (prev_dir_y != 0 && dir_y != prev_dir_y)
-                        mag = std::max(min_step_y, mag / 3);
+                        mag = std::max(min_step_y, int(mag / 3));
 
                     steps[1] = dir_y * mag;
                     prev_dir_y = dir_y;
@@ -204,17 +204,17 @@ void MassCenterBalancer::balance_both_axes_fan()
 void MassCenterBalancer::balance_z_axes_fan()
 {
     /* 扭矩→步长比例与阈值（按需现场标定） */
-    double kz;
-    double min_step;
-    double max_step;
+    int kz;
+    int min_step;
+    int max_step;
     // 回升力矩较大时的扭矩→步长比例
-    double kz_l = 3000.0; // step/N·m
-    double min_step_l = 100;
-    double max_step_l = 8000;
+    int kz_l = 3000; // step/N·m
+    int min_step_l = 100;
+    int max_step_l = 8000;
     // 回升力矩较小时的扭矩→步长比例
-    double kz_s = 1500.0; // step/N·m（保守）
-    double min_step_s = 50;
-    double max_step_s = 5000;
+    int kz_s = 1500; // step/N·m（保守）
+    int min_step_s = 50;
+    int max_step_s = 5000;
 
     pitch_metric_finish_ = false; // 回升力矩是否已经消除
 
@@ -328,10 +328,10 @@ void MassCenterBalancer::balance_z_axes_fan()
                 min_step = min_step_s;
                 max_step = max_step_s;
             }
-            double step_mag = static_cast<int>(std::clamp(std::abs(pitch_metric) * kz * 0.8,
+            double step_mag = static_cast<int>(std::clamp(int(std::abs(pitch_metric) * kz * 0.8),
                                                           min_step, max_step)); // 0.8 保守系数
             if (prev_dir_z != 0 && raw_sign != prev_dir_z)
-                step_mag = std::max(min_step, step_mag / 3);
+                step_mag = std::max(min_step, int(step_mag / 3));
 
             double step_z = raw_sign * step_mag;
             std::vector<float> action;

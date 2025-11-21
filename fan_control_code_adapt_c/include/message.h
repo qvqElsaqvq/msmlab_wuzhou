@@ -52,7 +52,7 @@ message_data WheelData{
     uint8_t device_id;  // 设备编号 01/02/03（动量轮）
     uint8_t direction;  // 动量轮旋转方向 55（正向）、AA（反向）
     uint8_t speed;  // 动量轮转速 0x01F4-0x1388 （对应500-5000rpm）
-    uint8_t reserve;  // 保留
+    uint8_t reserve[6];  // 保留
 };
 
 /* 平面气浮台和上位机MQTT通信部分 */
