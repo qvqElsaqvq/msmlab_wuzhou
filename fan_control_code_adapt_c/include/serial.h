@@ -33,14 +33,14 @@ namespace msmserial
             });
 
             registerChecker([](const Head &h) -> int {
-                if (h.frame_head == 0xFF || h.frame_head == 0xFE) {
+                if (h.frame_head == 0x6F || h.frame_head == 0x6E) {
                     return ok;
                 } else {
                     return sofError;
                 }
             });
             registerChecker([](const Tail &t, const uint8_t *data, int s) -> int {
-                if (t.checksum == 0) {
+                if (t.checksum == 0xED || t.checksum == 0xED) {
                     return ok;
                 } else {
                     return crcError;
@@ -53,14 +53,24 @@ namespace msmserial
             {
                 switch (h.command)
                 {
-                case 0x0:
-                    return sizeof(PlaneData);
-                case 0x1:
-                    return sizeof(CmdPlaneBasic);
-                case 0x2:
-                    return sizeof(CmdPlaneTrajectory);
-                case 0x3:
-                    return sizeof(CmdPlanePower);
+                case 0x01:
+                    return sizeof(FanControl);
+                case 0x02:
+                    return sizeof(WheelControl);
+                case 0x03:
+                    return sizeof(FanCalibrationControl);
+                case 0x04:
+                    return sizeof(LeadScrewControl);
+                case 0x05:
+                    return sizeof(GyroScopeData);
+                case 0x06:
+                    return sizeof(WheelData);
+                case 0x07:
+                    return sizeof(PowerData);
+                case 0x08:
+                    return sizeof(FanCalibrationData);
+                case 0x09:
+                    return sizeof(LeadScrewAlarm);
                 default:
                     return 1ul;
                 }

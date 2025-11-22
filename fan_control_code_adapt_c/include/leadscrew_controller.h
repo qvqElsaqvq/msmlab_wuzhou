@@ -18,7 +18,7 @@ private:
     msmserial::MsMSerial& ser_;
 
 public:
-    explicit LeadScrewController(msmserial::MsMSerial& serial) : ser_(serial) {}
+    explicit LeadScrewController(msmserial::MsMSerial& serial);
 
     /*
      * 发送位置控制指令（相对位移）

@@ -10,6 +10,8 @@ MassCenterBalancer::MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewContr
                                        Wheel& wheel, AttitudePDController& attitude_controller):
     gyro_(gyro), leadscrew_(lscrew_controller), wheel_(wheel), fan_(fan), controller_(attitude_controller)
 {
+    std::cout << "[MassCenterBalancer] init" << std::endl;
+
     tol_deg_ = 0.1;
     dwell_time_ = 10.0;
     sample_time_ = 10.0;

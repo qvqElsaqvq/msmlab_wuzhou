@@ -9,6 +9,8 @@ using Quat = Eigen::Quaterniond;
 
 AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan): gyro_(gyro), fan_(fan)
 {
+    std::cout << "[AttitudePDController] init" << std::endl;
+
     /* ====== 增益 ====== */
     Kp_ = Vec3(4000, 4000, 3700);
     Kd_ = Vec3(0, 100, 80);

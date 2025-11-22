@@ -4,6 +4,17 @@
 
 #include "leadscrew_controller.h"
 
+LeadScrewController::LeadScrewController(msmserial::MsMSerial &serial) : ser_(serial) {
+    std::cout << "[LeadScrewController] init" << std::endl;
+
+    ser_.registerCallback(0x09, [this](const LeadScrewAlarm& msg)
+    {
+        std::cout << "[Fan receive] device_id=" << (int)msg.device_id << ", alarm_x=" << (int)msg.alarm_x <<
+            ", alarm_y=" << (int)msg.alarm_y << ", alarm_z=" << (int)msg.alarm_z << std::endl;
+    });
+}
+
+
 void LeadScrewController::moveTo(const std::vector<float>& location)
 {
     LeadScrewControl leadscrew_control{

@@ -30,4 +30,10 @@ void Fan::sendTorque(float tx, float ty, float tz) {
 Fan::Fan(msmserial::MsMSerial& serial): ser_(serial)
 {
     std::cout << "Fan::Fan init" << std::endl;
+
+    ser_.registerCallback(0x08, [this](const FanCalibrationData& msg)
+    {
+        std::cout << "[Fan receive] device_id=" << (int)msg.device_id << ", fan_flag=" << (int)msg.fan_flag <<
+            ", fan_set=" << (int)msg.fan_set << std::endl;
+    });
 }

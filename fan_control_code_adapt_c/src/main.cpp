@@ -16,7 +16,7 @@
 
 using Vec3 = Eigen::Vector3d;
 
-msmserial::MsMSerial msm_serial("COM7", 115200);  //串口
+msmserial::MsMSerial msm_serial("/dev/ttyACM0", 115200);  //串口
 
 GyroScope gyro(msm_serial);
 LeadScrewController leadscrew(msm_serial);
@@ -48,10 +48,16 @@ void do_attitude_control_task(AttitudePDController& controller,
 /* ---------------- main ---------------- */
 int main()
 {
-    MQTTServer mqtt("192.168.31.81", 1883, "1",
-                    "satellite/data",
-                    "satellite/cmd");
-    mqtt.start();
+    msm_serial.spin(true);
+    std::cout << "[测试串口通信]" << std::endl;
+    int cnt = 0;
+    while (true)
+        cnt++;
+
+    // MQTTServer mqtt("192.168.31.81", 1883, "1",
+    //                 "satellite/data",
+    //                 "satellite/cmd");
+    // mqtt.start();
 
     // try
     // {

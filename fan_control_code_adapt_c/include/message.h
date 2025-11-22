@@ -10,14 +10,14 @@
 /* 平面气浮台和C板通信部分 */
 message_data Head {
     uint8_t frame_head; // 0xFF,0xFE
-    uint8_t command; // 0,1,2,3,4,5
+    uint8_t command;
 };
 
 message_data Tail {
-    uint8_t checksum; //异或
+    uint8_t checksum; // 0xED,0xED
 };
 
-message_data FanControl{
+message_data FanControl{ // 0x01
     uint8_t device_id;  // 设备号 00
     uint8_t direction;  // 后三位分别表示x，y，z的力的方向，0表示正向，1表示负向。例如：04（0000 0100）表示x负向，y，z正向
     uint8_t torque_x;  // X轴方向推力大小
@@ -25,21 +25,27 @@ message_data FanControl{
     uint8_t torque_z;  // Z轴方向推力大小
 };
 
-message_data WheelControl{
+message_data WheelControl{ // 0x02
     uint8_t device_id;  // 设备编号 01/02/03（动量轮）
     uint8_t direction;  // 动量轮旋转方向 55（正向）、AA（反向）
     uint8_t current;  // 动量轮电流 符号字符型*100
 };
 
-message_data LeadScrewControl{
-    uint8_t device_id;  // 设备编号
-    float dist_x;  // 质量块x移动距离
-    float dist_y;  // 质量块y移动距离
-    float dist_z;  // 质量块z移动距离
+message_data FanCalibrationControl{ // 0x03
+    uint8_t device_id;  // 设备号 1A
+    uint8_t fan_set; // 旋翼校准触发位, 内容：00（不触发），01（触发）
+    uint8_t fan_reset; // 内容：00（不触发），01（触发）内容：00（不重置） 01（重置）
 };
 
-message_data GyroScopeData{
-    uint8_t device_id;  // 设备号 00
+message_data LeadScrewControl{ // 0x04
+    uint8_t device_id;  // 设备编号 内容：0x3A
+    float dist_x;  // x轴丝杆电机移动步长
+    float dist_y;  // y轴丝杆电机移动步长
+    float dist_z;  // z轴丝杆电机移动步长
+};
+// 收
+message_data GyroScopeData{ // 0x05
+    uint8_t device_id;  // 设备号 06
     int16_t wx; // 4~5  角速度wx ×100
     int16_t wy; // 6~7 角速度wy ×100
     int16_t wz; // 8~9 角速度wz ×100
@@ -48,11 +54,36 @@ message_data GyroScopeData{
     int16_t roll; // 14~15 滚转角 ×100
 };
 
-message_data WheelData{
+message_data WheelData{ // 0x06
     uint8_t device_id;  // 设备编号 01/02/03（动量轮）
     uint8_t direction;  // 动量轮旋转方向 55（正向）、AA（反向）
     uint8_t speed;  // 动量轮转速 0x01F4-0x1388 （对应500-5000rpm）
     uint8_t reserve[6];  // 保留
+};
+
+message_data PowerData{ // 0x07
+    uint8_t device_id; // 设备编号 内容：05
+    uint8_t V_channel_1;
+    uint8_t V_channel_2;
+    uint8_t V_channel_3;
+    uint8_t V_channel_4;
+    uint8_t A_channel_1;
+    uint8_t A_channel_2;
+    uint8_t A_channel_3;
+    uint8_t A_channel_4;
+};
+
+message_data FanCalibrationData{ // 0x08
+    uint8_t device_id; // 设备编号 内容：1B
+    uint8_t fan_flag; // 旋翼校准标志位 内容：00（未完成），01（已完成）
+    uint8_t fan_set; // 旋翼校准触发位 内容：00（未触发），01（触发中）
+};
+
+message_data LeadScrewAlarm{ // 0x09
+    uint8_t device_id; // 设备编号 内容：1F
+    uint8_t alarm_x; // x轴丝杆撞边报警 内容：00（未触发），01（右边），02（左边）
+    uint8_t alarm_y; // y轴丝杆撞边报警
+    uint8_t alarm_z; // z轴丝杆撞边报警
 };
 
 /* 平面气浮台和上位机MQTT通信部分 */
