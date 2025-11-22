@@ -22,12 +22,12 @@ GyroScope::GyroScope(msmserial::MsMSerial& msm_serial): ser_(msm_serial)
 {
     std::cout << "[GyroScope] init" << std::endl;
 
-    ser_.registerCallback(0x04, [this](const GyroScopeData& msg)
+    ser_.registerCallback(0x05, [this](const GyroScopeData& msg)
     {
         setAngularVelocity(msg.wx, msg.wy, msg.wz);
         setAttitude(msg.roll, msg.pitch, msg.yaw);
 
-        std::cout << "[GyroScope receive] wx=" << msg.wx << ", wy=" << msg.wy << ", wz=" << msg.wz << std::endl;
-        std::cout << "[GyroScope receive] roll=" << msg.roll << ", pitch=" << msg.pitch << ", yaw=" << msg.yaw << std::endl;
+        // std::cout << "[GyroScope receive] wx=" << msg.wx << ", wy=" << msg.wy << ", wz=" << msg.wz << std::endl;
+        // std::cout << "[GyroScope receive] roll=" << msg.roll << ", pitch=" << msg.pitch << ", yaw=" << msg.yaw << std::endl;
     });
 }

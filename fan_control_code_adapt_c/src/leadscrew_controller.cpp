@@ -9,8 +9,8 @@ LeadScrewController::LeadScrewController(msmserial::MsMSerial &serial) : ser_(se
 
     ser_.registerCallback(0x09, [this](const LeadScrewAlarm& msg)
     {
-        std::cout << "[Fan receive] device_id=" << (int)msg.device_id << ", alarm_x=" << (int)msg.alarm_x <<
-            ", alarm_y=" << (int)msg.alarm_y << ", alarm_z=" << (int)msg.alarm_z << std::endl;
+        // std::cout << "[LeadScrewController receive] device_id=" << (int)msg.device_id << ", alarm_x=" << (int)msg.alarm_x <<
+        //     ", alarm_y=" << (int)msg.alarm_y << ", alarm_z=" << (int)msg.alarm_z << std::endl;
     });
 }
 

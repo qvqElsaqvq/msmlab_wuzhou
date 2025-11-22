@@ -8,11 +8,11 @@ Wheel::Wheel(msmserial::MsMSerial& serial): ser_(serial)
 {
     std::cout << "[Wheel] init" << std::endl;
 
-    ser_.registerCallback(0x05, [this](const WheelData& msg)
+    ser_.registerCallback(0x06, [this](const WheelData& msg)
     {
         setStauts(msg.device_id, msg.direction, msg.speed);
-        std::cout << "[Wheel] receive id,direction,speed: " << (int)msg.device_id << " " << (int)msg.direction << " " << (int)msg.speed
-            << std::endl;
+        std::cout << "[Wheel] receive id,direction,speed: " << (int) msg.device_id << " " << (int) msg.direction << " "
+                << (int) msg.speed << std::endl;
     });
 }
 

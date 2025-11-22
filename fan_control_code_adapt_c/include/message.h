@@ -57,8 +57,7 @@ message_data GyroScopeData{ // 0x05
 message_data WheelData{ // 0x06
     uint8_t device_id;  // 设备编号 01/02/03（动量轮）
     uint8_t direction;  // 动量轮旋转方向 55（正向）、AA（反向）
-    uint8_t speed;  // 动量轮转速 0x01F4-0x1388 （对应500-5000rpm）
-    uint8_t reserve[6];  // 保留
+    int16_t speed;  // 动量轮转速 0x01F4-0x1388 （对应500-5000rpm）
 };
 
 message_data PowerData{ // 0x07
