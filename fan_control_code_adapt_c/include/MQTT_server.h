@@ -44,7 +44,7 @@ public:
     void message_arrived(mqtt::const_message_ptr msg) override;
 
     void delivery_complete(mqtt::delivery_token_ptr tok) override {
-        std::cout << "Delivery complete!" << std::endl;
+        // std::cout << "Delivery complete!" << std::endl;
     }
 
     void convert_msg(const std::string& pl, uint8_t *buffer, int& idx);

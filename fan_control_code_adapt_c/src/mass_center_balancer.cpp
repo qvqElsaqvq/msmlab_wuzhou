@@ -168,7 +168,7 @@ void MassCenterBalancer::balance_both_axes_fan()
                     max_step_y = max_step_min;
                 }
 
-                std::vector<float> steps{0, 0, 0};
+                std::vector<int16_t> steps{0, 0, 0};
                 if (!flag_x)
                 {
                     int dir_x = (tx_mean_ > 0) ? -1 : +1;
@@ -335,9 +335,9 @@ void MassCenterBalancer::balance_z_axes_fan()
             if (prev_dir_z != 0 && raw_sign != prev_dir_z)
                 step_mag = std::max(min_step, int(step_mag / 3));
 
-            double step_z = raw_sign * step_mag;
-            std::vector<float> action;
-            action.push_back(int(step_z));
+            int step_z = raw_sign * step_mag;
+            std::vector<int16_t> action;
+            action.push_back(step_z);
             leadscrew_.moveTo(action);
             std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 " << step_z << std::endl;
             prev_dir_z = raw_sign;
@@ -438,7 +438,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                                 z_err_angle_mean_ = 0.0;
                             if (z_err_angle_mean_ >= 0.3) // 移动质量块
                             {
-                                std::vector<float> action;
+                                std::vector<int16_t> action;
                                 action.push_back(int(z_err_angle_mean_ * 40000));
                                 leadscrew_.moveTo(action);
                                 waiting_after_moving_ = true;
@@ -471,7 +471,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                                 x_err_angle_mean_ = 0.0;
                             if (abs(x_err_angle_mean_) >= 0.5) // 直接移动质量块
                             {
-                                std::vector<float> action;
+                                std::vector<int16_t> action;
                                 action.push_back(int(x_err_angle_mean_ * (-10000)));
                                 action.push_back(0);
                                 leadscrew_.moveTo(action);
@@ -503,7 +503,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                                 y_err_angle_mean_ = 0.0;
                             if (abs(y_err_angle_mean_) >= 0.5) // 直接移动质量块
                             {
-                                std::vector<float> action;
+                                std::vector<int16_t> action;
                                 action.push_back(0);
                                 action.push_back(int(y_err_angle_mean_ * 10000));
                                 leadscrew_.moveTo(action);

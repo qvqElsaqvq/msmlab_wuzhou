@@ -25,7 +25,7 @@ public:
      * location 长度 1 → 只动 Z 轴
      *          长度 2 → 动 X/Y 轴，Z 补 0
      */
-    void moveTo(const std::vector<float>& location);
+    void moveTo(const std::vector<int16_t>& location);
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_LEADSCREW_CONTROLLER_H

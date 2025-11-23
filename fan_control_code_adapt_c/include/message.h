@@ -9,12 +9,12 @@
 
 /* 平面气浮台和C板通信部分 */
 message_data Head {
-    uint8_t frame_head; // 0xFF,0xFE
-    uint8_t command;
+    uint16_t frame_head = 0x6F6E; // 0x6F,0x6E
+    uint8_t command = 0;
 };
 
 message_data Tail {
-    uint8_t checksum; // 0xED,0xED
+    uint16_t checksum = 0xEDED; // 0xED,0xED
 };
 
 // 发送
@@ -40,9 +40,9 @@ message_data FanCalibrationControl{ // 0x03
 
 message_data LeadScrewControl{ // 0x04
     uint8_t device_id;  // 设备编号 内容：0x3A
-    float dist_x;  // x轴丝杆电机移动步长
-    float dist_y;  // y轴丝杆电机移动步长
-    float dist_z;  // z轴丝杆电机移动步长
+    int16_t dist_x;  // x轴丝杆电机移动步长
+    int16_t dist_y;  // y轴丝杆电机移动步长
+    int16_t dist_z;  // z轴丝杆电机移动步长
 };
 
 // 接收

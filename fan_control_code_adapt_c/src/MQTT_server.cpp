@@ -153,8 +153,6 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.device_id
             << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_type
             << " cmd_data: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_data << "\n";
-
-        if(cmd_power_->data.cmd_data)
     }
     else if (msg->get_topic() == "attitude/fan")
     {

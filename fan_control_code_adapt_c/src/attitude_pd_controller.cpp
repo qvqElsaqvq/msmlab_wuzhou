@@ -109,13 +109,13 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     torque_x = tauCmd[0];
     torque_y = tauCmd[1];
     torque_z = tauCmd[2];
-    std::cout << "torque_x, torque_y, torque_z: " << torque_x << torque_y << torque_z << std::endl;
+    // std::cout << "torque_x=" << torque_x << ", torque_y=" << torque_y << ", torque_z=" << torque_z << std::endl;
 
     // 软饱和
     double tx = std::tanh(tauCmd[0] / 120.0);
     double ty = std::tanh(tauCmd[1] / 120.0);
     double tz = std::tanh(tauCmd[2] / 300.0);
-    std::cout << "tx: " << tx << ", ty: " << ty << ", tz: " << tz << std::endl;
+    // std::cout << "tx: " << tx << ", ty: " << ty << ", tz: " << tz << std::endl;
 
     // 下发力矩
     fan_.sendTorque(static_cast<float>(tx), static_cast<float>(ty), static_cast<float>(tz));

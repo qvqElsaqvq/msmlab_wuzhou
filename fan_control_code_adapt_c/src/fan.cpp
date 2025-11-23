@@ -23,8 +23,10 @@ void Fan::sendTorque(float tx, float ty, float tz) {
         .torque_z = toUint8_100(tz),
     };
     ser_.write(0x01, fan_control);
-    std::cout << "[Fan] Sending direction=" << dir << ", torque_x=" << fan_control.torque_x << ", torque_y="
-        << fan_control.torque_y << ", torque_z=" << fan_control.torque_z << std::endl;
+    // std::cout << "[Fan] Sending direction=" << std::hex << std::setfill('0') << std::setw(2) << (int)dir
+    // << ", torque_x=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_x
+    // << ", torque_y=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_y
+    // << ", torque_z=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_z << std::endl;
 }
 
 Fan::Fan(msmserial::MsMSerial& serial): ser_(serial)

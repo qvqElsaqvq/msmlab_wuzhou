@@ -15,26 +15,28 @@ LeadScrewController::LeadScrewController(msmserial::MsMSerial &serial) : ser_(se
 }
 
 
-void LeadScrewController::moveTo(const std::vector<float>& location)
+void LeadScrewController::moveTo(const std::vector<int16_t>& location)
 {
     LeadScrewControl leadscrew_control{
-        .device_id = 0x00,
-        .dist_x = 0.0,
-        .dist_y = 0.0,
-        .dist_z = 0.0,
+        .device_id = 0x3A,
+        .dist_x = 0,
+        .dist_y = 0,
+        .dist_z = 0,
     };
     if (location.size() == 2)  // X/Y
     {
         leadscrew_control.dist_x = location[0];
         leadscrew_control.dist_y = location[1];
-        ser_.write(0x03, leadscrew_control);
-        std::cout << "[LeadScrewController] moving XY: " << leadscrew_control.dist_x << ", " << leadscrew_control.dist_y
-            << std::endl;
+        ser_.write(0x04, leadscrew_control);
+        // std::cout << "[LeadScrewController] moving XY: " << std::endl;
+        // std::cout << "x=" << std::hex << std::setfill('0') << std::setw(4) << leadscrew_control.dist_x
+        // << ", y=" << std::hex << std::setfill('0') << std::setw(4)  << leadscrew_control.dist_y << std::endl;
     }
     else if (location.size() == 1)  // Z
     {
         leadscrew_control.dist_z = location[0];
-        ser_.write(0x03, leadscrew_control);
-        std::cout << "[LeadScrewController] moving Z: " << leadscrew_control.dist_z << std::endl;
+        ser_.write(0x04, leadscrew_control);
+        // std::cout << "[LeadScrewController] moving Z: " << std::endl;
+        // std::cout << "z=" << std::hex << std::setfill('0') << std::setw(4) << leadscrew_control.dist_z << std::endl;
     }
 }

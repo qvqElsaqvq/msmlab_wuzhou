@@ -33,14 +33,14 @@ namespace msmserial
             });
 
             registerChecker([](const Head &h) -> int {
-                if (h.frame_head == 0x6F || h.frame_head == 0x6E) {
+                if (h.frame_head == 0x6F6E) {
                     return ok;
                 } else {
                     return sofError;
                 }
             });
             registerChecker([](const Tail &t, const uint8_t *data, int s) -> int {
-                if (t.checksum == 0xED || t.checksum == 0xED) {
+                if (t.checksum == 0xEDED) {
                     return ok;
                 } else {
                     return crcError;
@@ -89,7 +89,7 @@ namespace msmserial
         // 发送数据
         template<typename T>
         bool write(uint8_t id, const T &t) {
-            return sp::serialPro<Head, Tail>::write(Head{.command = id}, t);
+            return sp::serialPro<Head, Tail>::write(Head{.command = id}, t, Tail{});
         }
     };
 }
