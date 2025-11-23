@@ -17,6 +17,7 @@ message_data Tail {
     uint8_t checksum; // 0xED,0xED
 };
 
+// 发送
 message_data FanControl{ // 0x01
     uint8_t device_id;  // 设备号 00
     uint8_t direction;  // 后三位分别表示x，y，z的力的方向，0表示正向，1表示负向。例如：04（0000 0100）表示x负向，y，z正向
@@ -43,7 +44,8 @@ message_data LeadScrewControl{ // 0x04
     float dist_y;  // y轴丝杆电机移动步长
     float dist_z;  // z轴丝杆电机移动步长
 };
-// 收
+
+// 接收
 message_data GyroScopeData{ // 0x05
     uint8_t device_id;  // 设备号 06
     int16_t wx; // 4~5  角速度wx ×100
@@ -86,15 +88,17 @@ message_data LeadScrewAlarm{ // 0x09
 };
 
 /* 平面气浮台和上位机MQTT通信部分 */
-message_data UP_Head {
-    uint8_t frame_head; // 0x4D,0x47
-    uint8_t command; // 0,1,2,3,4,5
+message_data NUC_Head{
+    uint8_t head;
 };
 
-// 平面气浮台传上位机指令格式
+message_data NUC_Tail{
+    uint8_t checksum;
+};
+
+// 平面气浮台传上位机指令格式 satellite/data
 message_data PlaneData {
-    uint8_t frame_head; // 0x4D,0x47
-    uint8_t device_id; // 3    设备号
+    uint8_t device_id; // 3    设备号 内容：01/02/03……
     uint8_t platform_type; // 4    气浮台类型 0xF1(平面气浮台)/0xF2(姿态气浮台)
     uint8_t cmd_count; // 5    指令计数
     uint8_t file_count; // 6    文件数
@@ -111,80 +115,78 @@ message_data PlaneData {
     int16_t wheel_rpm; // 24~25 动量轮转速 500–5000rpm
     uint8_t wheel_fault; // 26   动量轮故障码 00正常01故障
     int16_t payload_mass; // 27~28 承载质量 ×100
-    uint8_t pwr_v1; // 29   电源通道1 电压×10
-    uint8_t pwr_v2; // 30   电源通道2 电压×10
-    uint8_t pwr_v3; // 31   电源通道3 电压×10
-    uint8_t pwr_v4; // 32   电源通道4 电压×10
-    uint8_t pwr_i1; // 33   电源通道1 电流×10
-    uint8_t pwr_i2; // 34   电源通道2 电流×10
-    uint8_t pwr_i3; // 35   电源通道3 电流×10
-    uint8_t pwr_i4; // 36   电源通道4 电流×10
-    uint8_t battery_percent; // 37   电源电量 %
-    uint8_t traj_ready; // 38   内置轨迹准备完成 00未准备01准备完毕
-    int16_t thrust_x; // 39~40 X方向推力 ×100
-    int16_t thrust_y; // 41~42 Y方向推力 ×100
-    int16_t thrust_z; // 43~44 Z方向推力 ×100
-    int16_t torque_yaw; // 45~46 偏航力矩 ×100
-    int16_t torque_pitch; // 47~48 俯仰力矩 ×100
-    int16_t torque_roll; // 49~50 滚转力矩 ×100
-    uint8_t reserved[10]; // 51~60 保留
-    uint8_t checksum; //异或
+    int16_t pwr_v1; // 29~30   电源通道1 电压×10
+    int16_t pwr_v2; // 31~32   电源通道2 电压×10
+    int16_t pwr_v3; // 33~34   电源通道3 电压×10
+    int16_t pwr_v4; // 35~36   电源通道4 电压×10
+    int16_t pwr_i1; // 37~38   电源通道1 电流×10
+    int16_t pwr_i2; // 39~40   电源通道2 电流×10
+    int16_t pwr_i3; // 41~42   电源通道3 电流×10
+    int16_t pwr_i4; // 43~44   电源通道4 电流×10
+    uint8_t battery_percent; // 45   电源电量 百分比显示整数
+    uint8_t traj_ready; // 46   内置轨迹准备完成 00未准备01准备完毕
+    int16_t thrust_x; // 47~48 X方向推力 ×100
+    int16_t thrust_y; // 49~50 Y方向推力 ×100
+    int16_t thrust_z; // 51~52 Z方向推力（平面） ×100
+    int16_t torque_yaw; // 53~54 偏航力矩 ×100
+    int16_t torque_pitch; // 55~56 俯仰力矩 ×100
+    int16_t torque_roll; // 57~58 滚转力矩 ×100
+    uint8_t balance_flag; // 59 自动调平标志位 内容：00（未调平）、01（调平完成）
+    uint8_t balance_set; // 60 自动调平触发位 是否触发自动调平 内容：00（未触发）、01（触发中）
+    uint8_t fan_calibration_flag; // 61 旋翼校准标志位 旋翼校准是否完成 内容：00（未完成） 01（校准完成）
+    uint8_t fan_calibration_set; // 62 旋翼校准触发位 是否触发旋翼校准 内容：00（未触发） 01（触发中）
+    uint8_t reserved[7]; // 51~60 保留
 };
 
-// 上位机传平面气浮台基础指令
+// 上位机传平面气浮台基础指令 satellite/basic
 message_data CmdPlaneBasic {
-    uint8_t frame_head; // 0x1D,0x97
-    uint8_t device_id; // 3    设备号
+    uint8_t device_id; // 3    设备号 内容：01/02/03……
     uint8_t cmd_type; // 4    指令类型 0x10
-    int16_t pos_x; // 5~6  位置x ×100
-    int16_t pos_y; // 7~8  位置y ×100
-    int16_t rot_z; // 9~10 旋转z ×100
-    int16_t yaw; // 11~12 偏航角 ×100
-    int16_t pitch; // 13~14 俯仰角 ×100
-    int16_t roll; // 15~16 滚转角 ×100
-    uint8_t checksum; //异或
+    int32_t pos_x; // 5~8  位置x ×100
+    int32_t pos_y; // 9~12  位置y ×100
+    int32_t rot_z; // 13~16 旋转z ×100
+    int16_t yaw; // 17~18 偏航角 ×100
+    int16_t pitch; // 19~20 俯仰角 ×100
+    int16_t roll; // 21~22 滚转角 ×100
 };
 
-// 上位机传平面气浮内置轨迹指令
+// 上位机传平面气浮内置轨迹指令 satellite/trajectory
 message_data CmdPlaneTrajectory {
-    uint8_t frame_head; // 0x1D,0x97
-    uint8_t device_id; // 3    设备号
+    uint8_t device_id; // 3    设备号 内容：01/02/03……
     uint8_t cmd_type; // 4    指令类型 0x11
     uint8_t traj_id; // 5    内置轨迹ID 01/02/03
     uint8_t start; // 6    00不开始 01开始
-    uint8_t checksum; //异或
 };
 
-// 上位机传平面气浮台开关机指令
+// 上位机传平面气浮台开关机指令 satellite/power
 message_data CmdPlanePower {
-    uint8_t frame_head; // 0x1D,0x97
-    uint8_t device_id; // 3    设备号
-    uint8_t cmd_type; // 4    0x00执行中 0x01停机
-    uint8_t checksum; //异或
+    uint8_t device_id; // 3    设备号 内容：01/02/03……
+    uint8_t cmd_type; // 4    指令类型 内容：0x12
+    uint8_t cmd_data; // 5    指令内容 内容：0x00 执行中 0x01 停机
 };
 
 message_data Plane {
-    Head head;
+    NUC_Head head; // 0x4D,0x47
     PlaneData data;
-    Tail tail;
+    NUC_Tail tail;
 };
 
 message_data CmdBasic {
-    Head head;
+    NUC_Head head; // 0x1D,0x97
     CmdPlaneBasic data;
-    Tail tail;
+    NUC_Tail tail;
 };
 
 message_data CmdTrajectory {
-    Head head;
+    NUC_Head head; // 0x1D,0x97
     CmdPlaneTrajectory data;
-    Tail tail;
+    NUC_Tail tail;
 };
 
 message_data CmdPower {
-    Head head;
+    NUC_Head head; // 0x1D,0x97
     CmdPlanePower data;
-    Tail tail;
+    NUC_Tail tail;
 };
 
 #endif //SATELLITE_MESSAGE_H
