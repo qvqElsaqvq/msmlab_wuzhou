@@ -89,14 +89,14 @@ message_data LeadScrewAlarm{ // 0x09
 
 /* 平面气浮台和上位机MQTT通信部分 */
 message_data NUC_Head{
-    uint8_t head;
+    uint16_t head;
 };
 
 message_data NUC_Tail{
     uint8_t checksum;
 };
 
-// 平面气浮台传上位机指令格式 satellite/data
+// 平面气浮台传上位机指令格式 attitude/data
 message_data PlaneData {
     uint8_t device_id; // 3    设备号 内容：01/02/03……
     uint8_t platform_type; // 4    气浮台类型 0xF1(平面气浮台)/0xF2(姿态气浮台)
@@ -138,7 +138,7 @@ message_data PlaneData {
     uint8_t reserved[7]; // 51~60 保留
 };
 
-// 上位机传平面气浮台基础指令 satellite/basic
+// 上位机传平面气浮台基础指令 attitude/basic
 message_data CmdPlaneBasic {
     uint8_t device_id; // 3    设备号 内容：01/02/03……
     uint8_t cmd_type; // 4    指令类型 0x10
@@ -150,7 +150,7 @@ message_data CmdPlaneBasic {
     int16_t roll; // 21~22 滚转角 ×100
 };
 
-// 上位机传平面气浮内置轨迹指令 satellite/trajectory
+// 上位机传平面气浮内置轨迹指令 attitude/trajectory
 message_data CmdPlaneTrajectory {
     uint8_t device_id; // 3    设备号 内容：01/02/03……
     uint8_t cmd_type; // 4    指令类型 0x11
@@ -158,11 +158,45 @@ message_data CmdPlaneTrajectory {
     uint8_t start; // 6    00不开始 01开始
 };
 
-// 上位机传平面气浮台开关机指令 satellite/power
+// 上位机传平面气浮台开关机指令 attitude/power
 message_data CmdPlanePower {
     uint8_t device_id; // 3    设备号 内容：01/02/03……
     uint8_t cmd_type; // 4    指令类型 内容：0x12
     uint8_t cmd_data; // 5    指令内容 内容：0x00 执行中 0x01 停机
+};
+
+message_data FanTestData{
+    uint8_t device_id; // 3  设备号 内容：01/02/03……
+    uint8_t cmd_type; // 4    指令类型 内容：0x13
+    uint8_t fan_dir; // 5  推力方向后三位分别表示x，y，z的力的方向，0表示正向，1表示负向.例如：04（0000 0100）表示x负向，y，z正向
+    uint8_t torque_x; // 6  ×100
+    uint8_t torque_y; // 7  ×100
+    uint8_t torque_z; // 8  ×100
+};
+
+message_data WheelTestData{
+    uint8_t device_id; // 3  设备号 内容：01/02/03……
+    uint8_t cmd_type; // 4    指令类型 内容：0x14
+    uint8_t wheel_model; // 5  动量轮模式 F1（电流模式）F2（转速模式）
+    uint8_t wheel_dir; // 6  动量轮旋转方向 55（正向）、AA（反向）
+    int16_t wheel_current; // 7-8  动量轮电流 ×100
+    int16_t wheel_rpm; // 9-10  动量轮转速 内容：0x01F4-0x1388 （对应500-5000rpm）
+};
+
+message_data BalanceData{
+    uint8_t len; // 3  数据长度 内容：0x06
+    uint8_t cmd; // 4  遥控命令 0x05
+    uint8_t device_id; // 5 气浮台ID 01（姿态气浮台）
+    uint8_t balance_set; // 6 自动调平触发位 00（不触发）、01（触发）
+    uint8_t balance_reset; // 7 自动调平重置位 00（不重置）、01（触发）
+};
+
+message_data FanCalibrationMQTTData{
+    uint8_t len; // 3  数据长度 内容：0x04
+    uint8_t cmd; // 4  遥控命令 0xFF
+    uint8_t device_id; // 5 气浮台ID  内容：01（姿态气浮台）
+    uint8_t fan_set; // 旋翼校准触发位 内容：00（不触发）、01（触发）
+    uint8_t fan_reset; // 旋翼校准重置位 内容：00（不重置）、01（触发）
 };
 
 message_data Plane {
@@ -186,6 +220,30 @@ message_data CmdTrajectory {
 message_data CmdPower {
     NUC_Head head; // 0x1D,0x97
     CmdPlanePower data;
+    NUC_Tail tail;
+};
+
+message_data FanTest{
+    NUC_Head head; // 0x1D,0x97
+    FanTestData data;
+    NUC_Tail tail;
+};
+
+message_data WheelTest{
+    NUC_Head head; // 0x1D,0x97
+    WheelTestData data;
+    NUC_Tail tail;
+};
+
+message_data Balance{
+    NUC_Head head; // 0x5A,0x47
+    BalanceData data;
+    NUC_Tail tail;
+};
+
+message_data FanCalibration{
+    NUC_Head head; // 0x5A,0x47
+    FanCalibrationMQTTData data;
     NUC_Tail tail;
 };
 

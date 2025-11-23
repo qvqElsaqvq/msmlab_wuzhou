@@ -68,59 +68,65 @@ int main()
         std::cout << "Connected." << std::endl;
 
         client.start_consuming();
-        client.subscribe(cb.plane_data_topic, cb.QOS);
-        std::cout << "Subscribe topic " << cb.plane_data_topic << std::endl;
+        client.subscribe(cb.cmd_plane_basic_topic, cb.QOS);
+        client.subscribe(cb.cmd_plane_trajectory_topic, cb.QOS);
+        client.subscribe(cb.cmd_plane_power_topic, cb.QOS);
+        client.subscribe(cb.fan_test_topic, cb.QOS);
+        client.subscribe(cb.wheel_test_topic, cb.QOS);
+        client.subscribe(cb.balance_topic, cb.QOS);
+        client.subscribe(cb.fan_calibration_topic, cb.QOS);
+        // std::cout << "Subscribe topic " << cb.plane_data_topic << std::endl;
 
-        for(int i = 0; i < 5; i++)
-        {
-            Plane data{};
-            data.head.head = 0x4D47;
-            data.tail.checksum = 0x00;
-            data.data.device_id = 0x02;
-            data.data.platform_type = 0xF1;
-            data.data.cmd_count = 0x01;
-            data.data.file_count = 0x01;
-            data.data.platform_status = 0x00;
-            data.data.wx = 40;
-            data.data.wy = 40;
-            data.data.wz = 40;
-            data.data.roll = 30;
-            data.data.pitch = 30;
-            data.data.yaw = 30;
-            data.data.gyro_fault = 0x00;
-            data.data.wheel_dir = 0x55;
-            data.data.wheel_current = 100;
-            data.data.wheel_rpm = 3000;
-            data.data.wheel_fault = 0x00;
-            data.data.payload_mass = 100;
-            data.data.pwr_v1 = 50;
-            data.data.pwr_v2 = 50;
-            data.data.pwr_v3 = 50;
-            data.data.pwr_v4 = 50;
-            data.data.pwr_i1 = 20;
-            data.data.pwr_i2 = 20;
-            data.data.pwr_i3 = 20;
-            data.data.pwr_i4 = 20;
-            data.data.battery_percent = 70;
-            data.data.traj_ready = 0x01;
-            data.data.thrust_x = 200;
-            data.data.thrust_y = 200;
-            data.data.thrust_z = 200;
-            data.data.torque_roll = 300;
-            data.data.torque_pitch = 300;
-            data.data.torque_yaw = 300;
-            data.data.balance_flag = 0x00;
-            data.data.balance_set = 0x01;
-            data.data.fan_calibration_flag = 0x00;
-            data.data.fan_calibration_set = 0x01;
-            for(int i = 0; i < 7; i++)
-            {
-                data.data.reserved[i] = 0x00;
-            }
-            client.publish(cb.plane_data_topic, &data, sizeof(data), cb.QOS, false);
-            std::cout << "Publish Plane: " << sizeof(data) << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
+        // for(int i = 0; i < 500; i++)
+        // {
+        //     Plane data{};
+        //     data.head.head = 0x4D47;
+        //     data.tail.checksum = 0x00;
+        //     data.data.device_id = 0x02;
+        //     data.data.platform_type = 0xF1;
+        //     data.data.cmd_count = 0x01;
+        //     data.data.file_count = 0x01;
+        //     data.data.platform_status = 0x00;
+        //     data.data.wx = 40;
+        //     data.data.wy = 40;
+        //     data.data.wz = 40;
+        //     data.data.roll = 30;
+        //     data.data.pitch = 30;
+        //     data.data.yaw = 30;
+        //     data.data.gyro_fault = 0x00;
+        //     data.data.wheel_dir = 0x55;
+        //     data.data.wheel_current = 100;
+        //     data.data.wheel_rpm = 3000;
+        //     data.data.wheel_fault = 0x00;
+        //     data.data.payload_mass = 100;
+        //     data.data.pwr_v1 = 50;
+        //     data.data.pwr_v2 = 50;
+        //     data.data.pwr_v3 = 50;
+        //     data.data.pwr_v4 = 50;
+        //     data.data.pwr_i1 = 20;
+        //     data.data.pwr_i2 = 20;
+        //     data.data.pwr_i3 = 20;
+        //     data.data.pwr_i4 = 20;
+        //     data.data.battery_percent = 70;
+        //     data.data.traj_ready = 0x01;
+        //     data.data.thrust_x = 200;
+        //     data.data.thrust_y = 200;
+        //     data.data.thrust_z = 200;
+        //     data.data.torque_roll = 300;
+        //     data.data.torque_pitch = 300;
+        //     data.data.torque_yaw = 300;
+        //     data.data.balance_flag = 0x00;
+        //     data.data.balance_set = 0x01;
+        //     data.data.fan_calibration_flag = 0x00;
+        //     data.data.fan_calibration_set = 0x01;
+        //     for(int i = 0; i < 7; i++)
+        //     {
+        //         data.data.reserved[i] = 0x00;
+        //     }
+        //     client.publish(cb.plane_data_topic, &data, sizeof(data), cb.QOS, false);
+        //     // std::cout << "Publish Plane: " << sizeof(data) << std::endl;
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // }
 
         while (client.is_connected())
         {

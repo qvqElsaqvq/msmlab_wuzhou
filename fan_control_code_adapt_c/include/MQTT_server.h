@@ -13,10 +13,7 @@
 #include <endian.h>
 
 #include "message.h"
-#include "cpp/INIReader.h"
 #include "serial.h"
-
-extern INIReader ini;
 
 class CallBack : public virtual mqtt::callback,
                  public virtual mqtt::iaction_listener
@@ -37,7 +34,7 @@ public:
     }
 
     void message_arrived(mqtt::const_message_ptr msg) override {
-        if (msg->get_topic() == "satellite/data")
+        if (msg->get_topic() == "attitude/data")
         {
             std::cout << "On topic: " << msg->get_topic() << std::endl;
             const std::string& pl = msg->get_payload_str();
@@ -74,7 +71,7 @@ public:
                       << " pitch: " << d.data.pitch / 100.0 << " roll: " << d.data.roll / 100.0
                       << " wheel_rpm: " << d.data.wheel_rpm << " battery: " << +d.data.battery_percent << "%\n";
         }
-        else if(msg->get_topic() == "satellite/basic")
+        else if(msg->get_topic() == "attitude/basic")
         {
             std::cout << "On topic: " << msg->get_topic() << std::endl;
             const std::string& pl = msg->get_payload_str();
@@ -106,34 +103,41 @@ public:
                       << " rot_z: " << d.data.rot_z / 100.0 << " yaw: " << d.data.yaw / 100.0
                       << " pitch: " << d.data.pitch / 100.0 << " roll: " << d.data.roll / 100.0 << "%\n";
         }
-        else if(msg->get_topic() == "satellite/trajectory")
+        else if(msg->get_topic() == "attitude/trajectory")
         {
             std::cout << "On topic: " << msg->get_topic() << std::endl;
-            const std::string& pl = msg->get_payload_str();
-            if (pl.size() != sizeof(CmdTrajectory)) {
-                std::cerr << "[WARN] payload size " << pl.size()
+            const std::string& pl = msg->get_payload();
+            std::stringstream ss(pl);
+            uint8_t buffer[200] = {};
+            int idx = 0;
+            // std::cout << "buffer[idx]: " << std::endl;
+            while (!ss.eof()) {
+                int temp;
+                ss >> std::hex >> temp;
+                buffer[idx] = temp;
+                // std::cout << std::hex << std::setfill('0') << std::setw(2) << temp << " ";
+                idx += 1;
+            }
+            std::cout << " pl: " << pl << std::endl;
+            if (idx != sizeof(CmdTrajectory)) {
+                std::cerr << "[WARN] payload size " << idx
                           << " != " << sizeof(CmdTrajectory) << " bytes, drop\n";
                 return;
             }
 
-            CmdTrajectory d{};
-            std::memcpy(&d, pl.data(), sizeof(d));
-            // 小端转主机序
-            auto fix16 = [](int16_t raw) { return static_cast<int16_t>(le16toh(static_cast<uint16_t>(raw))); };
-            d.head.head = fix16(d.head.head);
-            d.data.device_id = fix16(d.data.device_id);
-            d.data.cmd_type = fix16(d.data.cmd_type);
-            d.data.traj_id = fix16(d.data.traj_id);
-            d.data.start = fix16(d.data.start);
-            d.tail.checksum = fix16(d.tail.checksum);
+            CmdTrajectory* d = new CmdTrajectory;
+
+            // d = (CmdTrajectory*)&buffer[0];
+            std::memcpy(d, buffer, idx);
 
             std::cout << "----- CmdPlaneTrajectory arrived -----\n"
-                      << "device_id: " << +d.data.device_id
-                      << " cmd_type: 0x" << std::hex << +d.data.cmd_type << std::dec
-                      << " traj_id: 0x" << std::hex << +d.data.traj_id << std::dec
-                      << " start: 0x" << std::hex << +d.data.start << std::dec << "%\n";
+                      << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)d->data.device_id
+                      << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2)  << (int)d->data.cmd_type
+                      << " traj_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)d->data.traj_id
+                      << " start: " << std::hex << std::setfill('0') << std::setw(2) << (int)d->data.start << "\n";
+            delete d;
         }
-        else if(msg->get_topic() == "satellite/power")
+        else if(msg->get_topic() == "attitude/power")
         {
             std::cout << "On topic: " << msg->get_topic() << std::endl;
             const std::string& pl = msg->get_payload_str();
@@ -158,6 +162,68 @@ public:
                       << " cmd_type: 0x" << std::hex << +d.data.cmd_type << std::dec
                       << " cmd_data: 0x" << std::hex << +d.data.cmd_data << std::dec << "%\n";
         }
+        else if(msg->get_topic() == "attitude/fan")
+        {
+            std::cout << "On topic: " << msg->get_topic() << std::endl;
+            const std::string& pl = msg->get_payload_str();
+            if (pl.size() != sizeof(FanTest)) {
+                std::cerr << "[WARN] payload size " << pl.size()
+                          << " != " << sizeof(FanTest) << " bytes, drop\n";
+                return;
+            }
+
+            FanTest d{};
+            std::memcpy(&d, pl.data(), sizeof(d));
+            // 小端转主机序
+            auto fix16 = [](int16_t raw) { return static_cast<int16_t>(le16toh(static_cast<uint16_t>(raw))); };
+            d.head.head = fix16(d.head.head);
+            d.data.device_id = fix16(d.data.device_id);
+            d.data.cmd_type = fix16(d.data.cmd_type);
+            d.data.fan_dir = fix16(d.data.fan_dir);
+            d.data.torque_x = fix16(d.data.torque_x);
+            d.data.torque_y = fix16(d.data.torque_y);
+            d.data.torque_z = fix16(d.data.torque_z);
+            d.tail.checksum = fix16(d.tail.checksum);
+
+            std::cout << "----- CmdPlaneTrajectory arrived -----\n"
+                    << "device_id: " << +d.data.device_id
+                    << " cmd_type: 0x" << std::hex << +d.data.cmd_type << std::dec
+                    << " fan_dir: 0x" << std::hex << +d.data.fan_dir << std::dec
+                    << " torque_x: " << d.data.torque_x << std::dec
+                    << " torque_y: " << d.data.torque_y << std::dec
+                    << " torque_z: " << d.data.torque_z << "%\n";
+        }
+        // else if(msg->get_topic() == "attitude/fan")
+        // {
+        //     std::cout << "On topic: " << msg->get_topic() << std::endl;
+        //     const std::string& pl = msg->get_payload_str();
+        //     if (pl.size() != sizeof(FanTest)) {
+        //         std::cerr << "[WARN] payload size " << pl.size()
+        //                   << " != " << sizeof(FanTest) << " bytes, drop\n";
+        //         return;
+        //     }
+        //
+        //     FanTest d{};
+        //     std::memcpy(&d, pl.data(), sizeof(d));
+        //     // 小端转主机序
+        //     auto fix16 = [](int16_t raw) { return static_cast<int16_t>(le16toh(static_cast<uint16_t>(raw))); };
+        //     d.head.head = fix16(d.head.head);
+        //     d.data.device_id = fix16(d.data.device_id);
+        //     d.data.cmd_type = fix16(d.data.cmd_type);
+        //     d.data.fan_dir = fix16(d.data.fan_dir);
+        //     d.data.torque_x = fix16(d.data.torque_x);
+        //     d.data.torque_y = fix16(d.data.torque_y);
+        //     d.data.torque_z = fix16(d.data.torque_z);
+        //     d.tail.checksum = fix16(d.tail.checksum);
+        //
+        //     std::cout << "----- CmdPlaneTrajectory arrived -----\n"
+        //             << "device_id: " << +d.data.device_id
+        //             << " cmd_type: 0x" << std::hex << +d.data.cmd_type << std::dec
+        //             << " fan_dir: 0x" << std::hex << +d.data.fan_dir << std::dec
+        //             << " torque_x: " << d.data.torque_x << std::dec
+        //             << " torque_y: " << d.data.torque_y << std::dec
+        //             << " torque_z: " << d.data.torque_z << "%\n";
+        // }
     }
 
     void delivery_complete(mqtt::delivery_token_ptr tok) override {
@@ -171,6 +237,10 @@ public:
     std::string cmd_plane_basic_topic; // 上位机传平面气浮台基础指令
     std::string cmd_plane_trajectory_topic; // 上位机传平面气浮内置轨迹指令
     std::string cmd_plane_power_topic; // 上位机传平面气浮台开关机指令
+    std::string fan_test_topic; // 推力器临时测试指令
+    std::string wheel_test_topic; // 动量轮临时测试指令
+    std::string balance_topic; // 上位机传姿态气浮台调平指令
+    std::string fan_calibration_topic; // 上位机传姿态气浮台旋翼校准指令
 
     struct AttitudeData
     {
@@ -178,13 +248,15 @@ public:
         double q0 = 0, q1 = 0, q2 = 0, q3 = 0;
     };
 
-    void send_plane_data();
-
 private:
     Plane plane_;
     CmdBasic cmd_basic_;
     CmdTrajectory cmd_trajectory_;
     CmdPower cmd_power_;
+    FanTest fan_test_;
+    WheelTest wheel_test_;
+    Balance balance_;
+    FanCalibration fan_calibration_;
 
     /* 数据变量 */
     double wx_;
