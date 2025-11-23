@@ -64,7 +64,7 @@ public:
     std::string fan_calibration_topic; // 上位机传姿态气浮台旋翼校准指令
 
     /* 控制指令标志位 */
-    bool flag_balance_; // 自动调平指令标志
+    bool flag_balance_; // 自动调平指令标志，标志
     bool reset_balance_; // 重置自动调平
     bool flag_attitude_euler_; // 欧拉角模式标志
     bool flag_attitude_quat_; // 四元数模式标志

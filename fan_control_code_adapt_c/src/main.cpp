@@ -37,13 +37,13 @@ void do_balance_task(MassCenterBalancer &balancer) {
 
 void do_attitude_control_task(AttitudePDController &controller,
                               const Attitude &target) {
-    // std::cout << "执行姿态控制算法rpy: " << target.roll << ", " << target.pitch << ", " << target.yaw << std::endl;
+    std::cout << "执行姿态控制算法rpy: " << target.roll << ", " << target.pitch << ", " << target.yaw << std::endl;
     Vec3 euler_angle_target(target.roll, target.pitch, target.yaw);
     controller.setAttitudeInBalancing(euler_angle_target);
     // std::cout << "姿态控制完成\n";
 }
 
-/* ---------------- main ---------------- */
+
 int main() {
     msm_serial.spin(true);
     // std::cout << "[测试串口通信]" << std::endl;
@@ -73,13 +73,16 @@ int main() {
         // std::cout << "Subscribe topic " << cb.plane_data_topic << std::endl;
 
         Attitude target;
-        target.roll = 10;
-        target.pitch = 20;
-        target.yaw = 30;
+        target.roll = 0;
+        target.pitch = 0;
+        target.yaw = 60;
         while (true) {
             // std::vector<int16_t> action{1000, 100};
             // leadscrew.moveTo(action);   // 先降 Z 轴质量块
-            do_attitude_control_task(controller, target);
+            // do_attitude_control_task(controller, target);
+
+            do_balance_task(balancer);
+
 
             for (int i = 0; i < 1; i++) {
                 Plane data{};
@@ -129,6 +132,8 @@ int main() {
                 // std::cout << "Publish Plane: " << sizeof(data) << std::endl;
                 // std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
+
+
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     } catch (const mqtt::exception &e) {

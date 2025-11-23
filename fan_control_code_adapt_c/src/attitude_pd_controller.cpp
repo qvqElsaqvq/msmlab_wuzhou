@@ -112,9 +112,11 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     // std::cout << "torque_x=" << torque_x << ", torque_y=" << torque_y << ", torque_z=" << torque_z << std::endl;
 
     // 软饱和
-    double tx = std::tanh(tauCmd[0] / 120.0);
-    double ty = std::tanh(tauCmd[1] / 120.0);
-    double tz = std::tanh(tauCmd[2] / 300.0);
+    // double tx = 0.5;
+    // double ty = -0.5;
+    double tx = std::tanh(tauCmd[0] / 1000.0);
+    double ty = std::tanh(tauCmd[1] / 1000.0);
+    double tz = std::tanh(tauCmd[2] / 1500.0);
     // std::cout << "tx: " << tx << ", ty: " << ty << ", tz: " << tz << std::endl;
 
     // 下发力矩

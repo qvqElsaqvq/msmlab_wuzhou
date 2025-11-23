@@ -114,7 +114,7 @@ void MassCenterBalancer::balance_both_axes_fan()
         // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
         controller_.setAttitudeInBalancing({0.0, 0.0, 0.0});
 
-        if (if_first_balancing)
+        if (0)
         {
             std::cout << "首次执行等待气浮台移动至指定角度附近, first_balancing_sleep_time=" << first_balancing_sleep_time << std::endl;
             first_balancing_sleep_cnt++;
@@ -126,6 +126,7 @@ void MassCenterBalancer::balance_both_axes_fan()
         }
         else
         {
+            // std::cout << "-----------------------" << std::endl;
             wait_steady_and_sample_outputs();
 
             if (if_end_sampling_)
