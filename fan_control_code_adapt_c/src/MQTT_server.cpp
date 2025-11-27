@@ -64,10 +64,16 @@ CallBack::CallBack()
     QOS = 1;
 
     flag_balance_ = false;
-    flag_attitude_euler_ = false;
-    flag_attitude_quat_ = false;
+    if_need_balancing_ = false;
+
     running_ = false;
+
     if_open_ = false;
+
+    if_need_fan_calibration_ = false;
+    flag_fan_calibration_ = false;
+
+    if_receive_attitude_basic_ = false;
 }
 
 CallBack::~CallBack()
@@ -108,6 +114,11 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         //     << " yaw: " << (int)cmd_basic_->data.yaw / 100
         //     << " pitch: " << (int)cmd_basic_->data.pitch / 100
         //     << " roll: " << (int)cmd_basic_->data.roll / 100 << "\n";
+
+        attitude_data_.roll = cmd_basic_->data.roll;
+        attitude_data_.pitch = cmd_basic_->data.pitch;
+        attitude_data_.yaw = cmd_basic_->data.yaw;
+        if_receive_attitude_basic_ = true;
     }
     else if (msg->get_topic() == "attitude/trajectory")
     {
@@ -227,6 +238,21 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         //     << " balance_set: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.balance_set
         //     << " balance_reset: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.balance_reset
         //     << "\n";
+
+        if(!flag_balance_) // 没完成过自动调平
+        {
+            if(balance_->data.balance_set)
+                if_need_balancing_ = true;
+            else
+                if_need_balancing_ = false;
+        }
+        else
+        {
+            if(balance_->data.balance_reset && balance_->data.balance_set)
+                if_need_balancing_ = true;
+            else
+                if_need_balancing_ = false;
+        }
     }
     else if (msg->get_topic() == "attitude/calibration")
     {
@@ -251,6 +277,21 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         //     << " fan_set: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.fan_set
         //     << " fan_reset: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.fan_reset
         //     << "\n";
+
+        if(!flag_fan_calibration_)
+        {
+            if(fan_calibration_->data.fan_set)
+                if_need_fan_calibration_ = true;
+            else
+                if_need_fan_calibration_ = false;
+        }
+        else
+        {
+            if(fan_calibration_->data.fan_set && fan_calibration_->data.fan_reset)
+                if_need_fan_calibration_ = true;
+            else
+                if_need_fan_calibration_ = false;
+        }
     }
 }
 
@@ -267,4 +308,15 @@ void CallBack::convert_msg(const std::string& pl, uint8_t* buffer, int& idx)
         idx += 1;
     }
     // std::cout << " pl: " << pl << std::endl;
+}
+
+void CallBack::setFlagBalance(bool flag)
+{
+    if(flag)
+    {
+        flag_balance_ = true;
+        if_need_balancing_ = false;
+    }
+    else
+        flag_balance_ = false;
 }

@@ -30,9 +30,7 @@ void do_balance_task(MassCenterBalancer &balancer) {
     std::cout << "执行自动调平算法...\n";
     std::vector<int16_t> action{-1000};
     leadscrew.moveTo(action); // 先降 Z 轴质量块
-    balancer.balance_both_axes_fan(); // XY轴调平
-    balancer.balance_z_axes_fan(); // Z轴调平
-    std::cout << "调平完成" << std::endl;
+    balancer.balance_axes();
 }
 
 void do_attitude_control_task(AttitudePDController &controller,
@@ -57,6 +55,12 @@ int main() {
     mqtt::connect_options connOpts;
     connOpts.set_clean_session(false);
 
+    bool flag_balancing = false; // 自动调平是否完成
+    bool set_balancing = false; // 是否触发自动调平
+    bool flag_fan_calibration = false; // 旋翼校准是否完成
+    bool set_fan_calibration = false; // 是否触发旋翼校准
+    bool current_balance_status = false; // 当前调平状态，是否已经在调平中
+
     try {
         std::cout << "Connecting..." << std::endl;
         client.connect(connOpts)->wait();
@@ -75,15 +79,48 @@ int main() {
         Attitude target;
         target.roll = 0;
         target.pitch = 0;
-        target.yaw = 60;
+        target.yaw = 0;
         while (true) {
-            // std::vector<int16_t> action{1000, 100};
-            // leadscrew.moveTo(action);   // 先降 Z 轴质量块
-            // do_attitude_control_task(controller, target);
+            // 接收数据更新并执行流程
+            if(cb.getIfNeedBalancing())
+            {
+                if(!current_balance_status)
+                {
+                    std::cout << "执行自动调平算法...\n";
+                    std::vector<int16_t> action{-1000};
+                    leadscrew.moveTo(action); // 先降 Z 轴质量块
+                    current_balance_status = true;
+                }
 
-            do_balance_task(balancer);
+                balancer.balance_axes();
+                if(balancer.getIfFinishBalancing())
+                {
+                    cb.setFlagBalance(true);
+                    current_balance_status = false;
+                    flag_balancing = true;
+                    set_balancing = false;
+                    balancer.reset_balance();
+                }
+            }
+            else if(cb.getIfReceiveAttitudeControl())
+            {
+                AttitudeData angle = cb.getAttitudeData();
+                target.roll = angle.roll;
+                target.pitch = angle.pitch;
+                target.yaw = angle.yaw;
+                do_attitude_control_task(controller, target);
+            }
 
+            // 发送数据更新并上发
+            auto gyro_att = gyro.getAttitude();
+            Attitude att{gyro_att.x,gyro_att.y,gyro_att.z};
+            auto gyro_av = gyro.getAngularVelocity();
+            AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};
 
+            flag_balancing = balancer.getIfFinishBalancing();
+            set_balancing = balancer.getIfInBalancing();
+
+            // 数据上发
             for (int i = 0; i < 1; i++) {
                 Plane data{};
                 data.head.head = 0x4D47;
@@ -92,19 +129,23 @@ int main() {
                 data.data.platform_type = 0xF2;
                 data.data.cmd_count = 0x01;
                 data.data.file_count = 0x01;
-                data.data.platform_status = 0x00;
-                data.data.wx = 40;
-                data.data.wy = 40;
-                data.data.wz = 40;
-                data.data.roll = 30;
-                data.data.pitch = 30;
-                data.data.yaw = 30;
+                data.data.platform_status = 0x01;
+
                 data.data.gyro_fault = 0x00;
+                data.data.wx = av.wx;
+                data.data.wy = av.wy;
+                data.data.wz = av.wz;
+                data.data.roll = att.roll;
+                data.data.pitch = att.pitch;
+                data.data.yaw = att.yaw;
+
                 data.data.wheel_dir = 0x55;
                 data.data.wheel_current = 100;
                 data.data.wheel_rpm = 3000;
                 data.data.wheel_fault = 0x00;
+
                 data.data.payload_mass = 100;
+
                 data.data.pwr_v1 = 50;
                 data.data.pwr_v2 = 50;
                 data.data.pwr_v3 = 50;
@@ -114,17 +155,21 @@ int main() {
                 data.data.pwr_i3 = 20;
                 data.data.pwr_i4 = 20;
                 data.data.battery_percent = 70;
+
                 data.data.traj_ready = 0x01;
-                data.data.thrust_x = 200;
-                data.data.thrust_y = 200;
-                data.data.thrust_z = 200;
+
+                data.data.thrust_x = 0;
+                data.data.thrust_y = 0;
+                data.data.thrust_z = 0;
                 data.data.torque_roll = 300;
                 data.data.torque_pitch = 300;
                 data.data.torque_yaw = 300;
-                data.data.balance_flag = 0x00;
-                data.data.balance_set = 0x01;
-                data.data.fan_calibration_flag = 0x00;
-                data.data.fan_calibration_set = 0x01;
+
+                data.data.balance_flag = flag_balancing;
+                data.data.balance_set = set_balancing;
+                data.data.fan_calibration_flag = flag_fan_calibration;
+                data.data.fan_calibration_set = set_fan_calibration;
+
                 for (int i = 0; i < 7; i++) {
                     data.data.reserved[i] = 0x00;
                 }
@@ -133,7 +178,7 @@ int main() {
                 // std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
-
+            // 控制循环频率
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     } catch (const mqtt::exception &e) {
@@ -146,60 +191,6 @@ int main() {
     client.stop_consuming();
     client.disconnect()->wait();
     std::cout << "[MQTT] 断开连接" << std::endl;
-    // try
-    // {
-    //     while (true)
-    //     {
-    //         /* 1. 调平指令 */
-    //         if (mqtt.flag_balance.exchange(false))
-    //         {
-    //             std::thread([&balancer]{
-    //                 do_balance_task(balancer);
-    //             }).detach();
-    //         }
-    //
-    //         /* 2. 欧拉角姿态指令 */
-    //         if (mqtt.flag_attitude_euler.exchange(false))
-    //         {
-    //             std::thread([&controller, &mqtt]{
-    //                 do_attitude_control_task(controller,
-    //                                          mqtt.attitude_data_euler);
-    //             }).detach();
-    //         }
-    //
-    //         /* 3. 四元数姿态指令 */
-    //         if (mqtt.flag_attitude_quat.exchange(false))
-    //         {
-    //             std::thread([&controller, &mqtt]{
-    //                 auto q = mqtt.attitude_data_quat;
-    //                 // quat -> euler ZYX
-    //                 Vec3 ea = q.toRotationMatrix().eulerAngles(2,1,0);
-    //                 Attitude att{ea[2], ea[1], ea[0]};
-    //                 do_attitude_control_task(controller, att);
-    //             }).detach();
-    //         }
-    //
-    //         /* 4. 主循环更新传感器数据 */
-    //         Attitude  att  = gyro.getAttitude();
-    //         AngularVel av  = gyro.getAngularVelocity();
-    //         Eigen::Quaterniond q =
-    //             Eigen::AngleAxisd(att.yaw,   Eigen::Vector3d::UnitZ()) *
-    //             Eigen::AngleAxisd(att.pitch, Eigen::Vector3d::UnitY()) *
-    //             Eigen::AngleAxisd(att.roll,  Eigen::Vector3d::UnitX());
-    //
-    //         double t = std::chrono::duration<double>(
-    //             std::chrono::system_clock::now().time_since_epoch()).count();
-    //         mqtt.publish_telemetry(t, att, av, q);
-    //
-    //         wheel.setCurrent(att, av);
-    //
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    //     }
-    // }
-    // catch (std::exception& e)
-    // {
-    //     std::cerr << "异常退出: " << e.what() << '\n';
-    // }
 
     return 0;
 }

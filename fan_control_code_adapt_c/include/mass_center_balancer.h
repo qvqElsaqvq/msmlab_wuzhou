@@ -34,8 +34,6 @@ public:
     explicit MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewController& lscrew_controller, Wheel& wheel,
                                 AttitudePDController& attitude_controller);
 
-    /// XY 调平总入口
-    void balance_xy_fan();
     /**
      * @brief XY调平控制主循环,目标：通过旋翼闭环把姿态收敛到 [0,0,0]，在稳态下采样控制输出(Tx,Ty)，
      * @brief 将其与质量块移动步数建立比例关系，移动X/Y质量块；循环直至稳态输出足够小。
@@ -51,16 +49,20 @@ public:
      * @brief 循环至回升力矩低于阈值。全程限制跨越稳定边界：方向翻转则自动减半步长
      */
     void balance_z_axes_fan();
-    /// 启动丝杆电机
-    void activate_motors();
-    /// 关闭丝杆电机
-    void deactivate_motors();
     /**
      * @brief 等待稳态 + 采样
      * @brief 等到 roll/pitch/yaw 连续 dwell_time 内都满足误差 < tol_deg；
      * @brief 然后在 sample_time 内采样控制器输出的 Tx、Ty（通过 compute_control 即时计算），返回 (Tx_mean, Ty_mean)
      */
     void wait_steady_and_sample_outputs();
+
+    void balance_axes();
+
+    void reset_balance();
+
+    [[nodiscard]] bool getIfInBalancing() const{ return if_set_balancing_; }
+
+    [[nodiscard]] bool getIfFinishBalancing() const{ return if_finish_balancing_; }
 
 private:
     GyroScope& gyro_;
@@ -117,6 +119,8 @@ private:
     bool if_begin_sampling_; // 是否开始采样
     bool if_end_sampling_;  // 是否结束采样
     bool if_finish_balancing_;  // 调平是否结束
+    bool flag_x_, flag_y_; // xy是否已经调平完成
+    bool if_set_balancing_; // 是否触发自动调平
 
     /* z轴调平相关 */
     bool if_return_zero_;

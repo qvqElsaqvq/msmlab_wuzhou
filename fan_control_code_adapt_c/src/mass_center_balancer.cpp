@@ -57,6 +57,9 @@ MassCenterBalancer::MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewContr
     if_begin_sampling_ = false;
     if_end_sampling_ = false;
     if_finish_balancing_ = false;
+    flag_x_ = false;
+    flag_y_ = false;
+    if_set_balancing_ = false;
 
     if_return_zero_ = false;
     if_finish_testing_ty_ = false;
@@ -66,24 +69,10 @@ MassCenterBalancer::MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewContr
     if_20_ok_ = false;
 }
 
-void MassCenterBalancer::balance_xy_fan()
-{
-    activate_motors();
-    balance_both_axes_fan();
-    deactivate_motors();
-}
-
-void MassCenterBalancer::activate_motors()
-{
-}
-
-void MassCenterBalancer::deactivate_motors()
-{
-}
-
 void MassCenterBalancer::balance_both_axes_fan()
 {
-    bool flag_x = false, flag_y = false; // 是否已经配平完成
+    if_set_balancing_ = true;
+
     int prev_dir_x = 0, prev_dir_y = 0; // 预设质量块的移动方向
 
     /* 扭矩→步长比例与阈值（按需现场标定） */
@@ -109,12 +98,12 @@ void MassCenterBalancer::balance_both_axes_fan()
     settle_wait_ = 0.02; // 控制循环频率
 
     std::cout << "！！开始XY调平！！" << std::endl;
-    while (!(flag_x && flag_y))
-    {
+    // while (!(flag_x_ && flag_y_))
+    // {
         // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
         controller_.setAttitudeInBalancing({0.0, 0.0, 0.0});
 
-        if (0)
+        if (if_first_balancing)
         {
             std::cout << "首次执行等待气浮台移动至指定角度附近, first_balancing_sleep_time=" << first_balancing_sleep_time << std::endl;
             first_balancing_sleep_cnt++;
@@ -138,6 +127,8 @@ void MassCenterBalancer::balance_both_axes_fan()
                 if (std::abs(tx_mean_) <= torque_done && std::abs(ty_mean_) <= torque_done)
                 {
                     std::cout << "XY 调平完成" << std::endl;
+                    flag_y_ = true;
+                    flag_x_ = true;
                     return;
                 }
 
@@ -170,7 +161,7 @@ void MassCenterBalancer::balance_both_axes_fan()
                 }
 
                 std::vector<int16_t> steps{0, 0, 0};
-                if (!flag_x)
+                if (!flag_x_)
                 {
                     int dir_x = (tx_mean_ > 0) ? -1 : +1;
                     int mag = static_cast<int>(std::clamp(int(std::abs(tx_mean_) * kx), min_step_x, max_step_x));
@@ -180,7 +171,7 @@ void MassCenterBalancer::balance_both_axes_fan()
                     steps[0] = dir_x * mag;
                     prev_dir_x = dir_x;
                 }
-                if (!flag_y)
+                if (!flag_y_)
                 {
                     int dir_y = (ty_mean_ > 0) ? +1 : -1;
                     int mag = static_cast<int>(std::clamp(int(std::abs(ty_mean_) * ky * 0.75),
@@ -200,8 +191,8 @@ void MassCenterBalancer::balance_both_axes_fan()
                 waiting_t_enter_ = clock();
             }
         }
-        std::this_thread::sleep_for(std::chrono::seconds(static_cast<int64_t>(settle_wait_)));
-    }
+        // std::this_thread::sleep_for(std::chrono::seconds(static_cast<int64_t>(settle_wait_)));
+    // }
 }
 
 void MassCenterBalancer::balance_z_axes_fan()
@@ -219,8 +210,6 @@ void MassCenterBalancer::balance_z_axes_fan()
     int min_step_s = 50;
     int max_step_s = 5000;
 
-    pitch_metric_finish_ = false; // 回升力矩是否已经消除
-
     double torque_z_threshold = 7;
     double torque_done = 5.0; // 允许的回升力矩上限（Nm）
     double pitch_metric = 0.0;
@@ -232,17 +221,9 @@ void MassCenterBalancer::balance_z_axes_fan()
     sample_time_ = 15.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
-    // 标志位重置
-    if_return_zero_ = false;
-    if_finish_testing_ty_ = false;
-    if_in_steady_state_ = false;
-    is_balancing_z_ = true;
-    if_15_ok_ = false;
-    if_20_ok_ = false;
-
-    std::cout << "[FAN-Z] 开始z轴调平！" << std::endl;
-    while (1)
-    {
+    // std::cout << "[FAN-Z] 开始z轴调平！" << std::endl;
+    // while (1)
+    // {
         // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
         if (!if_return_zero_)
         {
@@ -292,23 +273,25 @@ void MassCenterBalancer::balance_z_axes_fan()
                     if_15_ok_ = true;
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 15° 调平完成" << std::endl;
+                    return;
                 }
                 else if (!if_20_ok_)
                 {
                     if_20_ok_ = true;
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 20° 调平完成" << std::endl;
+                    return;
                 }
                 else if (!pitch_metric_finish_)
                 {
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 30° 调平完成" << std::endl;
                     if_finish_balancing_ = true;
+                    if_set_balancing_ = false;
                     pitch_metric_finish_ = true;
                     std::cout << "[FAN-Z] Z 轴调平完成！ if_finish_balancing= " << if_finish_balancing_ << std::endl;
                     return;
                 }
-                continue;
             }
 
             // 4) 方向与步长（保守，不跨边界：方向翻转自动减半）
@@ -350,8 +333,8 @@ void MassCenterBalancer::balance_z_axes_fan()
             waiting_after_moving_ = true;
             waiting_t_enter_ = clock();
         }
-        std::this_thread::sleep_for(std::chrono::seconds(static_cast<int64_t>(settle_wait_)));
-    }
+    //     std::this_thread::sleep_for(std::chrono::seconds(static_cast<int64_t>(settle_wait_)));
+    // }
 }
 
 void MassCenterBalancer::wait_steady_and_sample_outputs()
@@ -552,4 +535,24 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
             if_end_sampling_ = true;
         }
     }
+}
+
+void MassCenterBalancer::balance_axes()
+{
+    if(!(flag_x_ && flag_y_))
+        balance_both_axes_fan();
+    else if(flag_x_ && flag_y_ && !if_finish_balancing_)
+        balance_z_axes_fan();
+}
+
+void MassCenterBalancer::reset_balance()
+{
+    /* Z轴标志位复位 */
+    pitch_metric_finish_ = false; // 回升力矩是否已经消除
+    if_return_zero_ = false;
+    if_finish_testing_ty_ = false;
+    if_in_steady_state_ = false;
+    is_balancing_z_ = true;
+    if_15_ok_ = false;
+    if_20_ok_ = false;
 }

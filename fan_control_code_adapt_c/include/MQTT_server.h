@@ -15,6 +15,11 @@
 #include "message.h"
 #include "serial.h"
 
+struct AttitudeData
+{
+    double pitch = 0.0, roll = 0.0, yaw = 0.0;
+};
+
 class CallBack : public virtual mqtt::callback,
                  public virtual mqtt::iaction_listener
 {
@@ -22,12 +27,6 @@ public:
     explicit CallBack();
 
     ~CallBack() override;
-
-    struct AttitudeData
-    {
-        double pitch = 0, roll = 0, yaw = 0;
-        double q0 = 0, q1 = 0, q2 = 0, q3 = 0;
-    };
 
     void on_failure(const mqtt::token &tok) override {
         std::cout << "Connection failed!" << std::endl;
@@ -49,7 +48,15 @@ public:
 
     void convert_msg(const std::string& pl, uint8_t *buffer, int& idx);
 
-    AttitudeData getAttitudeData();
+    [[nodiscard]] AttitudeData getAttitudeData() const { return attitude_data_; }
+
+    [[nodiscard]] bool getIfNeedBalancing() const { return if_need_balancing_; }
+
+    [[nodiscard]] bool getIfNeedFanCalibration() const { return if_need_fan_calibration_; }
+
+    [[nodiscard]] bool getIfReceiveAttitudeControl() const{ return if_receive_attitude_basic_; }
+
+    void setFlagBalance(bool flag);
 
     std::string SERVER_ADDRESS;
     std::string CLIENT_ID;
@@ -63,14 +70,6 @@ public:
     std::string balance_topic; // 上位机传姿态气浮台调平指令
     std::string fan_calibration_topic; // 上位机传姿态气浮台旋翼校准指令
 
-    /* 控制指令标志位 */
-    bool flag_balance_; // 自动调平指令标志，标志
-    bool reset_balance_; // 重置自动调平
-    bool flag_attitude_euler_; // 欧拉角模式标志
-    bool flag_attitude_quat_; // 四元数模式标志
-    bool if_open_; // 开关机状态
-    bool running_; // 线程是否还在运行
-
 private:
     Plane* plane_;
     CmdBasic* cmd_basic_;
@@ -80,6 +79,19 @@ private:
     WheelTest* wheel_test_;
     Balance* balance_;
     FanCalibration* fan_calibration_;
+
+    /* 控制指令标志位 */
+    bool flag_balance_; // 自动调平指令标志，标志是否完成过至少一次自动调平
+    bool if_need_balancing_;
+
+    bool if_open_; // 开关机状态
+
+    bool running_; // 线程是否还在运行
+
+    bool if_need_fan_calibration_;
+    bool flag_fan_calibration_; // 当前是否进行过至少一次旋翼校准
+
+    bool if_receive_attitude_basic_;
 
     /* 数据变量 */
     double wx_;
@@ -95,8 +107,6 @@ private:
     std::vector<uint8_t> wheel_dirs_{0x55, 0x55, 0x55};
     std::vector<uint16_t> wheel_rpms_{0, 0, 0};
     AttitudeData attitude_data_;
-
-    std::map<std::string, double> attitude_data; // 姿态控制指令数据
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_MQTT_SERVER_H
