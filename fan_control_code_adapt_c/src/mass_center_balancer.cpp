@@ -67,6 +67,9 @@ MassCenterBalancer::MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewContr
     pitch_metric_finish_ = false;
     if_15_ok_ = false;
     if_20_ok_ = false;
+    first_balancing_sleep_cnt = 0;
+    if_first_balancing = true;
+    first_balancing_sleep_time = 30;
 }
 
 void MassCenterBalancer::balance_both_axes_fan()
@@ -87,25 +90,19 @@ void MassCenterBalancer::balance_both_axes_fan()
     double torque_done = 1.5; // 稳态输出阈值（Nm），小于则认定该轴已足够好
     double torque_xy_threshold = 3.0;
 
-    // 判断首次调平相关
-    bool if_first_balancing = true;
-    int first_balancing_sleep_cnt = 0;
-    int first_balancing_sleep_time = 30;
-
     tol_deg_ = 0.1;
     dwell_time_ = 10.0; // 稳态保持计时时间
     sample_time_ = 10.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
-    std::cout << "！！开始XY调平！！" << std::endl;
     // while (!(flag_x_ && flag_y_))
     // {
         // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
-        controller_.setAttitudeInBalancing({0.0, 0.0, 0.0});
+        controller_.setAttitudeInBalancing({0.0, 0.0, 120.0});
 
         if (if_first_balancing)
         {
-            std::cout << "首次执行等待气浮台移动至指定角度附近, first_balancing_sleep_time=" << first_balancing_sleep_time << std::endl;
+            // std::cout << "首次执行等待气浮台移动至指定角度附近, first_balancing_sleep_cnt=" << first_balancing_sleep_cnt << std::endl;
             first_balancing_sleep_cnt++;
             if (first_balancing_sleep_cnt >= first_balancing_sleep_time / settle_wait_)
             {
@@ -444,10 +441,13 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                     }
                     if (x_err_angle_t_enter_ != -1)
                     {
-                        std::cout << "x_err_angle: " << x_target_angle_ - roll << std::endl;
+                        // std::cout << "x_target_angle_: " << x_target_angle_ << std::endl;
+                        // std::cout << "roll: " << roll << std::endl;
                         x_err_angle_.push_back(x_target_angle_ - roll);
-                        if (clock() - x_err_angle_t_enter_ >= x_err_angle_t_threshold_)
+                        // std::cout << "time=" << (clock() - x_err_angle_t_enter_) / CLOCKS_PER_SEC << std::endl;
+                        if ((clock() - x_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= x_err_angle_t_threshold_)
                         {
+                            std::cout << "--------------------------------" << std::endl;
                             if (x_err_angle_.size() > 0)
                                 x_err_angle_mean_ = std::accumulate(x_err_angle_.begin(), x_err_angle_.end(), 0.0)
                                     / x_err_angle_.size();

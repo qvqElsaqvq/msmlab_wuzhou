@@ -35,7 +35,7 @@ void do_balance_task(MassCenterBalancer &balancer) {
 
 void do_attitude_control_task(AttitudePDController &controller,
                               const Attitude &target) {
-    std::cout << "执行姿态控制算法rpy: " << target.roll << ", " << target.pitch << ", " << target.yaw << std::endl;
+    // std::cout << "执行姿态控制算法rpy: " << target.roll << ", " << target.pitch << ", " << target.yaw << std::endl;
     Vec3 euler_angle_target(target.roll, target.pitch, target.yaw);
     controller.setAttitudeInBalancing(euler_angle_target);
     // std::cout << "姿态控制完成\n";
@@ -104,7 +104,11 @@ int main() {
             }
             else if(cb.getIfReceiveAttitudeControl())
             {
-                AttitudeData angle = cb.getAttitudeData();
+                AttitudeData angle;
+                // AttitudeData angle = cb.getAttitudeData();
+                angle.pitch = 0.0;
+                angle.roll = 0.0;
+                angle.yaw = 0.0;
                 target.roll = angle.roll;
                 target.pitch = angle.pitch;
                 target.yaw = angle.yaw;

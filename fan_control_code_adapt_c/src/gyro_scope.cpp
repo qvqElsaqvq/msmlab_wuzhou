@@ -30,8 +30,8 @@ GyroScope::GyroScope(msmserial::MsMSerial& msm_serial): ser_(msm_serial)
         // std::cout << "[GyroScope receive] wx=" << msg.wx / 100.0
         // << ", wy=" << msg.wy / 100.0
         // << ", wz=" << msg.wz / 100.0 << std::endl;
-        // std::cout << "[GyroScope receive] roll=" << msg.roll / 100.0
-        // << ", pitch=" << msg.pitch / 100.0
-        // << ", yaw=" << msg.yaw / 100.0 << std::endl;
+        std::cout << "[GyroScope receive] roll=" << msg.roll / 100.0
+        << ", pitch=" << msg.pitch / 100.0
+        << ", yaw=" << msg.yaw / 100.0 << std::endl;
     });
 }

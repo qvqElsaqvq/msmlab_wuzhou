@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <iostream>
 #include <ctime>
+#include <time.h>
 
 #include "attitude_pd_controller.h"
 #include "gyro_scope.h"
@@ -112,6 +113,9 @@ private:
     int z_period_threshold_; // 调平判断周期数阈值
     int xy_balancing_cnt_;
     int xy_balancing_cnt_threshold_;
+    int first_balancing_sleep_cnt;
+    bool if_first_balancing;
+    int first_balancing_sleep_time;
 
     /* 调平相关标志位 */
     bool if_in_steady_state_;  // 是否在稳态状态

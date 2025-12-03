@@ -120,7 +120,8 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     // std::cout << "tx: " << tx << ", ty: " << ty << ", tz: " << tz << std::endl;
 
     // 下发力矩
-    fan_.sendTorque(static_cast<float>(tx), static_cast<float>(ty), static_cast<float>(tz));
+    fan_.sendTorque(0, 0, 0.2);
+    // fan_.sendTorque(static_cast<float>(tx), static_cast<float>(ty), static_cast<float>(tz));
 }
 
 Vec3 AttitudePDController::getTorque()
