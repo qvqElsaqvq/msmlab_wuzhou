@@ -45,6 +45,10 @@ Vec3 AttitudePDController::computeControl(const Quat& qCurrent, const Vec3& angl
     /* 外环：角度 → 角速度参考 */
     Vec3 vRef = Kp_anging_.cwiseProduct(angErrDeg) - Kd_anging_.cwiseProduct(wDps);
     vRef = vRef.cwiseMax(Vec3(-1.0, -1.0, -3.0)).cwiseMin(Vec3(1.0, 1.0, 3.0));
+    vRef[0] = 1.0;
+    vRef[1] = 0.0;
+    vRef[2] = 0.0;
+    // std::cout << "vRef=" << vRef << std::endl;
 
     Vec3 er  = vRef - wDps;
 
@@ -111,16 +115,18 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     torque_z = tauCmd[2];
     // std::cout << "torque_x=" << torque_x << ", torque_y=" << torque_y << ", torque_z=" << torque_z << std::endl;
 
+    tauCmd[1] = 0;
+    tauCmd[2] = 0;
     // 软饱和
     // double tx = 0.5;
     // double ty = -0.5;
     double tx = std::tanh(tauCmd[0] / 1000.0);
     double ty = std::tanh(tauCmd[1] / 1000.0);
     double tz = std::tanh(tauCmd[2] / 1500.0);
-    // std::cout << "tx: " << tx << ", ty: " << ty << ", tz: " << tz << std::endl;
+    std::cout << "tx: " << tx << ", ty: " << ty << ", tz: " << tz << std::endl;
 
     // 下发力矩
-    fan_.sendTorque(0, 0, 0.2);
+    fan_.sendTorque(static_cast<float>(tx), 0, 0);
     // fan_.sendTorque(static_cast<float>(tx), static_cast<float>(ty), static_cast<float>(tz));
 }
 

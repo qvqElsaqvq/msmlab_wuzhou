@@ -39,7 +39,7 @@ CallBack::CallBack()
     fan_calibration_->head.head = 0x5A47;
     fan_calibration_->tail.checksum = 0x00;
 
-    SERVER_ADDRESS = "mqtt://112.20.77.50:1883";
+    SERVER_ADDRESS = "mqtt://192.168.0.11:1883";
     CLIENT_ID = "satellite_client";
     QOS = 1;
     plane_data_topic = "attitude/data";
@@ -105,15 +105,15 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         }
         std::memcpy(cmd_basic_, buffer, idx);
 
-        // std::cout << "----- CmdBasic arrived -----\n"
-        //     << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_basic_->data.device_id
-        //     << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_basic_->data.cmd_type
-        //     << " pos_x: " << cmd_basic_->data.pos_x / 100
-        //     << " pos_y: " << cmd_basic_->data.pos_y / 100
-        //     << " rot_z: " << cmd_basic_->data.rot_z / 100
-        //     << " yaw: " << (int)cmd_basic_->data.yaw / 100
-        //     << " pitch: " << (int)cmd_basic_->data.pitch / 100
-        //     << " roll: " << (int)cmd_basic_->data.roll / 100 << "\n";
+        std::cout << "----- CmdBasic arrived -----\n"
+            << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_basic_->data.device_id
+            << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_basic_->data.cmd_type
+            << " pos_x: " << std::dec << cmd_basic_->data.pos_x
+            << " pos_y: " << std::dec << cmd_basic_->data.pos_y
+            << " rot_z: " << std::dec << cmd_basic_->data.rot_z
+            << " yaw: " << std::dec << (int)cmd_basic_->data.yaw
+            << " pitch: " << std::dec << (int)cmd_basic_->data.pitch
+            << " roll: " << std::dec << (int)cmd_basic_->data.roll << "\n";
 
         attitude_data_.roll = cmd_basic_->data.roll;
         attitude_data_.pitch = cmd_basic_->data.pitch;
@@ -139,11 +139,11 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         // d = (CmdTrajectory*)&buffer[0];
         std::memcpy(cmd_trajectory_, buffer, idx);
 
-        // std::cout << "----- CmdPlaneTrajectory arrived -----\n"
-        //     << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.device_id
-        //     << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.cmd_type
-        //     << " traj_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.traj_id
-        //     << " start: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.start << "\n";
+        std::cout << "----- CmdPlaneTrajectory arrived -----\n"
+            << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.device_id
+            << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.cmd_type
+            << " traj_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.traj_id
+            << " start: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.start << "\n";
         // delete d;
     }
     else if (msg->get_topic() == "attitude/power")
@@ -161,10 +161,10 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             return;
         }
         std::memcpy(cmd_power_, buffer, idx);
-        // std::cout << "----- CmdPower arrived -----\n"
-        //     << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.device_id
-        //     << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_type
-        //     << " cmd_data: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_data << "\n";
+        std::cout << "----- CmdPower arrived -----\n"
+            << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.device_id
+            << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_type
+            << " cmd_data: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_data << "\n";
     }
     else if (msg->get_topic() == "attitude/fan")
     {
@@ -182,13 +182,13 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         }
         std::memcpy(fan_test_, buffer, idx);
 
-        // std::cout << "----- FanTest arrived -----\n"
-        //     << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_test_->data.device_id
-        //     << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_test_->data.cmd_type
-        //     << " cmd_data: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_test_->data.fan_dir
-        //     << " torque_x: " << (int)fan_test_->data.torque_x / 100
-        //     << " torque_y: " << (int)fan_test_->data.torque_y / 100
-        //     << " torque_z: " << (int)fan_test_->data.torque_z / 100 << "\n";
+        std::cout << "----- FanTest arrived -----\n"
+            << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_test_->data.device_id
+            << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_test_->data.cmd_type
+            << " cmd_data: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_test_->data.fan_dir
+            << " torque_x: " << (int)fan_test_->data.torque_x / 100
+            << " torque_y: " << (int)fan_test_->data.torque_y / 100
+            << " torque_z: " << (int)fan_test_->data.torque_z / 100 << "\n";
     }
     else if (msg->get_topic() == "attitude/wheel")
     {
@@ -206,14 +206,14 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         }
         std::memcpy(wheel_test_, buffer, idx);
 
-        // std::cout << "----- WheelTest arrived -----\n"
-        //     << " device_id: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.device_id
-        //     << " cmd_type: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.cmd_type
-        //     << " wheel_model: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.wheel_model
-        //     << " wheel_dir: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.wheel_dir
-        //     << " wheel_current: " << (int)wheel_test_->data.wheel_current / 100
-        //     << " wheel_rpm: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.wheel_rpm
-        //     << "\n";
+        std::cout << "----- WheelTest arrived -----\n"
+            << " device_id: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.device_id
+            << " cmd_type: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.cmd_type
+            << " wheel_model: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.wheel_model
+            << " wheel_dir: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.wheel_dir
+            << " wheel_current: " << (int)wheel_test_->data.wheel_current / 100
+            << " wheel_rpm: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.wheel_rpm
+            << "\n";
     }
     else if (msg->get_topic() == "attitude/balance")
     {
@@ -223,21 +223,21 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         int idx = 0;
         convert_msg(pl, buffer, idx);
 
-        if (idx != sizeof(BalanceData))
+        if (idx != sizeof(Balance))
         {
             std::cerr << "[WARN] payload size " << idx
-                << " != " << sizeof(BalanceData) << " bytes, drop\n";
+                << " != " << sizeof(Balance) << " bytes, drop\n";
             return;
         }
         std::memcpy(balance_, buffer, idx);
 
-        // std::cout << "----- BalanceData arrived -----\n"
-        //     << " len: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.len
-        //     << " cmd: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.cmd
-        //     << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.device_id
-        //     << " balance_set: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.balance_set
-        //     << " balance_reset: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.balance_reset
-        //     << "\n";
+        std::cout << "----- BalanceData arrived -----\n"
+            << " len: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.len
+            << " cmd: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.cmd
+            << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.device_id
+            << " balance_set: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.balance_set
+            << " balance_reset: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.balance_reset
+            << "\n";
 
         if(!flag_balance_) // 没完成过自动调平
         {
@@ -270,13 +270,13 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         }
         std::memcpy(fan_calibration_, buffer, idx);
 
-        // std::cout << "----- FanCalibration arrived -----\n"
-        //     << " len: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.len
-        //     << " cmd: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.cmd
-        //     << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.device_id
-        //     << " fan_set: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.fan_set
-        //     << " fan_reset: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.fan_reset
-        //     << "\n";
+        std::cout << "----- FanCalibration arrived -----\n"
+            << " len: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.len
+            << " cmd: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.cmd
+            << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.device_id
+            << " fan_set: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.fan_set
+            << " fan_reset: " << std::hex << std::setfill('0') << std::setw(2) << (int)fan_calibration_->data.fan_reset
+            << "\n";
 
         if(!flag_fan_calibration_)
         {

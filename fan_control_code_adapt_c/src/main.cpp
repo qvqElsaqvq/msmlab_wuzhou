@@ -74,7 +74,14 @@ int main() {
         client.subscribe(cb.wheel_test_topic, cb.QOS);
         client.subscribe(cb.balance_topic, cb.QOS);
         client.subscribe(cb.fan_calibration_topic, cb.QOS);
-        // std::cout << "Subscribe topic " << cb.plane_data_topic << std::endl;
+        std::cout << "Subscribe topic " << std::endl;
+        std::cout << cb.cmd_plane_basic_topic << std::endl;
+        std::cout << cb.cmd_plane_trajectory_topic << std::endl;
+        std::cout << cb.cmd_plane_power_topic << std::endl;
+        std::cout << cb.fan_test_topic << std::endl;
+        std::cout << cb.wheel_test_topic << std::endl;
+        std::cout << cb.balance_topic << std::endl;
+        std::cout << cb.fan_calibration_topic << std::endl;
 
         Attitude target;
         target.roll = 0;
