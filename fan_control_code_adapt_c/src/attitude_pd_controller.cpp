@@ -29,100 +29,81 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan): gyro_(gyr
     angleTarget_ = Vec3::Zero();
     qTarget_ = Quat::Identity();
 
-    slew_ = 8.0;
-
     torque_x = 0.0;
     torque_y = 0.0;
     torque_z = 0.0;
+
+    angle_pid_.Dout = Vec3(0.0, 0, 0);
+    angle_pid_.Pout = Vec3(0, 0, 0);
+    angle_pid_.Iout = Vec3(0, 0, 0);
+    angle_pid_.last_error = Vec3(0, 0, 0);
+    angle_pid_.max_i_out = Vec3(0, 0, 0);
+    angle_pid_.max_out = Vec3(0, 0, 0);
+    angle_pid_.out = Vec3(0, 0, 0);
+    v_pid_.Dout = Vec3(0, 0, 0);
+    v_pid_.Pout = Vec3(0, 0, 0);
+    v_pid_.Iout = Vec3(0, 0, 0);
+    v_pid_.last_error = Vec3(0, 0, 0);
+    v_pid_.max_i_out = Vec3(0, 0, 0);
+    v_pid_.max_out = Vec3(0, 0, 0);
+    v_pid_.out = Vec3(0, 0, 0);
+
+    /* PID参数 */
+    angle_pid_.Kp = Vec3(0, 0, 0);
+    angle_pid_.Ki = Vec3(0, 0, 0);
+    angle_pid_.Kd = Vec3(0, 0, 0);
+
+    v_pid_.Kp = Vec3(0, 0, 0);
+    v_pid_.Ki = Vec3(0, 0, 0);
+    v_pid_.Kd = Vec3(0, 0, 0);
 }
 
-Vec3 AttitudePDController::computeControl(const Quat& qCurrent, const Vec3& angleCurrentDeg, const Vec3& wBodyDeg)
+PID AttitudePDController::computeControl(PID pid, Vec3& ref, Vec3& set)
 {
-    // 欧拉角误差（单位：deg）
-    Vec3 angErrDeg = angleTarget_ - angleCurrentDeg;
-    Vec3 wDps = wBodyDeg;
+    Vec3 error = set - ref;
 
-    /* 外环：角度 → 角速度参考 */
-    Vec3 vRef = Kp_anging_.cwiseProduct(angErrDeg) - Kd_anging_.cwiseProduct(wDps);
-    vRef = vRef.cwiseMax(Vec3(-1.0, -1.0, -3.0)).cwiseMin(Vec3(1.0, 1.0, 3.0));
-    vRef[0] = 1.0;
-    vRef[1] = 0.0;
-    vRef[2] = 0.0;
-    // std::cout << "vRef=" << vRef << std::endl;
+    pid.Pout = pid.Kp * error;
+    pid.Iout += pid.Ki * error;
+    pid.Iout = std::max(pid.Iout, pid.max_i_out);
+    pid.Dout = pid.Kd * (error - pid.last_error);
+    pid.out = pid.Pout + pid.Iout + pid.Dout;
+    pid.out = std::max(pid.out, pid.max_out);
 
-    Vec3 er  = vRef - wDps;
-
-    /* 积分 + 抗饱和 */
-    intRate_ += er * dt_;
-    Vec3 intMax(25, 25, 20);
-    intRate_ = intRate_.cwiseMax(-intMax).cwiseMin(intMax);
-
-    Vec3 edot = (er - prevEr_) / dt_;
-    prevEr_   = er;
-
-    /* 内环 PID */
-    Vec3 tau;
-    tau[0] = Kp_rating_[0] * er[0] + Ki_rating_[0] * intRate_[0] + Kd_rating_[0] * edot[0];
-    tau[1] = Kp_rating_[1] * er[1] + Ki_rating_[1] * intRate_[1] + Kd_rating_[1] * edot[1];
-    tau[2] = 0.0; // Z 后面单独算
-    return tau;
+    return pid;
 }
 
 void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
 {
     /*
      * 调平过程中使用的不进死循环的控制
-     * X/Y：双环PID（欧拉角）
-     * Z：滑膜PD（四元数）
+     * X/Y/Z：双环PID（欧拉角）
      */
 
     angleTarget_ = eulerAngleDeg;
-    qTarget_ = eulerZYXToQuat(eulerAngleDeg);
 
     /* 读当前姿态 */
     auto av = gyro_.getAngularVelocity();  // °/s
     auto at = gyro_.getAttitude();  // °
     Vec3 angleCurrentDeg(at.x, at.y, at.z);
-    Vec3 wBodyDeg(av.x, av.y, av.z);
+    Vec3 wCurrentDeg(av.x, av.y, av.z);
 
-    Quat qCurrent = eulerZYXToQuat(angleCurrentDeg);
+    /* X/Y/Z 双环 PID */
+    PID wCmd = computeControl(angle_pid_, angleTarget_, angleCurrentDeg);
+    PID tauCmd = computeControl(v_pid_, wCmd.out, wCurrentDeg);
 
-    /* X/Y 双环 PID */
-    Vec3 tauCmd = computeControl(qCurrent, angleCurrentDeg, wBodyDeg);
-
-    /* Z 滑模 PD */
-    Quat qe = quatError(qTarget_, qCurrent);
-    double e0 = qe.w();
-    Vec3 eVec= qe.vec();  // [ex,ey,ez]
-    double errDeg = rad2deg(2.0 * std::atan2(eVec.norm(), std::fabs(e0)));
-
-    double kpz, kdz;
-    if (errDeg >= 30.0)      kpz = 0.1;
-    else if (errDeg <= 1.0)  kpz = 1.0;
-    else                     kpz = 0.1 + (1.0 - 0.1) * (30.0 - errDeg) / 29.0;
-
-    double wmag = wBodyDeg.norm();
-    kdz = 1.0 + 0.25 * std::min(wmag / 6.0, 1.0) + kpz * 0.2;
-
-    double Kpz = Kp_[2] * kpz;
-    double Kdz = Kd_[2] * kdz;
-    double tauZ = -Kpz * eVec.z() - Kdz * wBodyDeg.z();
-
-    tauCmd[2] = tauZ;
-
-    torque_x = tauCmd[0];
-    torque_y = tauCmd[1];
-    torque_z = tauCmd[2];
+    torque_x = tauCmd.out[0];
+    torque_y = tauCmd.out[1];
+    torque_z = tauCmd.out[2];
     // std::cout << "torque_x=" << torque_x << ", torque_y=" << torque_y << ", torque_z=" << torque_z << std::endl;
 
-    tauCmd[1] = 0;
-    tauCmd[2] = 0;
+    // tauCmd.out[1] = 0;
+    // tauCmd.out[2] = 0;
     // 软饱和
     // double tx = 0.5;
     // double ty = -0.5;
-    double tx = std::tanh(tauCmd[0] / 1000.0);
-    double ty = std::tanh(tauCmd[1] / 1000.0);
-    double tz = std::tanh(tauCmd[2] / 1500.0);
+    double tx = std::tanh(tauCmd.out[0] / 120.0);
+    double ty = std::tanh(tauCmd.out[1] / 120.0);
+    double tz = std::tanh(tauCmd.out[2] / 300.0);
     std::cout << "tx: " << tx << ", ty: " << ty << ", tz: " << tz << std::endl;
 
     // 下发力矩

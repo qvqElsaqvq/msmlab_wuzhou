@@ -17,6 +17,16 @@
 using Vec3 = Eigen::Vector3d;
 using Quat = Eigen::Quaterniond;
 
+struct PID
+{
+    Vec3 Kp, Ki, Kd;  // rpy轴PID参数
+    Vec3 Pout, Iout, Dout;
+    Vec3 last_error;
+    Vec3 max_i_out;
+    Vec3 max_out;
+    Vec3 out;  // pid输出量
+};
+
 class AttitudePDController
 {
 private:
@@ -53,44 +63,20 @@ private:
     double torque_y;
     double torque_z;
 
+    PID angle_pid_; // 角度环，外环
+    PID v_pid_; // 速度环，内环
+
     /// deg ↔ rad
     static double deg2rad(double d) { return d * M_PI / 180.0; }
     static double rad2deg(double r) { return r * 180.0 / M_PI; }
-
-    /// ZYX 欧拉角 → 四元数
-    static Quat eulerZYXToQuat(const Vec3& eDeg)
-    {
-        return Eigen::AngleAxisd(deg2rad(eDeg.z()), Vec3::UnitZ()) *
-               Eigen::AngleAxisd(deg2rad(eDeg.y()), Vec3::UnitY()) *
-               Eigen::AngleAxisd(deg2rad(eDeg.x()), Vec3::UnitX());
-    }
-    /// 四元数 → ZYX 欧拉角 (rad)
-    static Vec3 quatToEulerZYX(const Quat& q)
-    {
-        const auto& w = q.w();
-        const auto& x = q.x();
-        const auto& y = q.y();
-        const auto& z = q.z();
-
-        double roll  = std::atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
-        double sp    = 2 * (w * y - z * x);
-        double pitch = std::asin(std::clamp(sp, -1.0, 1.0));
-        double yaw   = std::atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
-        return Vec3(roll, pitch, yaw);
-    }
-    /// 误差四元数
-    static Quat quatError(const Quat& qTarget, const Quat& qCurrent)
-    {
-        return qTarget * qCurrent.conjugate();
-    }
 
 public:
     explicit AttitudePDController(GyroScope& gyro, Fan& fan);
 
     /// 传入目标欧拉角（ZYX，单位 度）
     void setAttitudeInBalancing(const Vec3& eulerAngleDeg);
-    /// X/Y 双环 PID，计算推力器力矩输出（Z 在滑模里面算）
-    Vec3 computeControl(const Quat& qCurrent, const Vec3& angleCurrentDeg, const Vec3& wBodyDeg);
+    /// X/Y/Z 双环 PID，计算推力器力矩输出
+    PID computeControl(PID pid, Vec3& ref, Vec3& set);
     /// 供外部读取当前扭矩
     Vec3 getTorque();
 };

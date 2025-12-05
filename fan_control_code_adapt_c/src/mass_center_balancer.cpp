@@ -181,8 +181,8 @@ void MassCenterBalancer::balance_both_axes_fan()
                 }
 
                 leadscrew_.moveTo(steps);
-                std::cout << "[FAN-XY] 发送 x 轴移动指令，位置改变: " << steps[0] << std::endl;
-                std::cout << "[FAN-XY] 发送 y 轴移动指令，位置改变: " << steps[1] << std::endl;
+                std::cout << "[FAN-XY] 发送 x 轴移动指令，位置改变: " << std::dec << steps[0] << std::endl;
+                std::cout << "[FAN-XY] 发送 y 轴移动指令，位置改变: " << std::dec << steps[1] << std::endl;
                 if_in_steady_state_ = false;
                 waiting_after_moving_ = true;
                 waiting_t_enter_ = clock();
@@ -253,7 +253,7 @@ void MassCenterBalancer::balance_z_axes_fan()
             if (if_end_sampling_)
             {
                 pitch_metric = ty_mean_; // 维持该倾角所需的回升力矩（取 Y 轴）
-                std::cout << "[FAN-Z] 回升力矩指标: pitch= " << pitch_metric << std::endl;
+                std::cout << "[FAN-Z] 回升力矩指标: pitch= " << std::dec << pitch_metric << std::endl;
                 if_finish_testing_ty_ = true;
                 if_in_steady_state_ = false;
             }
@@ -320,7 +320,7 @@ void MassCenterBalancer::balance_z_axes_fan()
             std::vector<int16_t> action;
             action.push_back(step_z);
             leadscrew_.moveTo(action);
-            std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 " << step_z << std::endl;
+            std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 " << std::dec << step_z << std::endl;
             prev_dir_z = raw_sign;
 
             // 标志位重置
@@ -424,7 +424,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                                 leadscrew_.moveTo(action);
                                 waiting_after_moving_ = true;
                                 waiting_t_enter_ = clock();
-                                std::cout << "[Z] 与目标角度误差较大，移动质量块: " << int(40000 * z_err_angle_mean_) << std::endl;
+                                std::cout << "[Z] 与目标角度误差较大，移动质量块: " << std::dec << int(40000 * z_err_angle_mean_) << std::endl;
                             }
                             z_err_angle_.clear();
                             z_err_angle_t_enter_ = -1;
@@ -462,7 +462,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
 
                                 waiting_after_moving_ = true;
                                 waiting_t_enter_ = clock();
-                                std::cout << "[X] 与目标角度误差较大，移动质量块: " << int(-10000 * x_err_angle_mean_) << std::endl;
+                                std::cout << "[X] 与目标角度误差较大，移动质量块: " << std::dec << int(-10000 * x_err_angle_mean_) << std::endl;
                             }
                             x_err_angle_.clear();
                             x_err_angle_t_enter_ = -1;
@@ -476,7 +476,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                     }
                     if (y_err_angle_t_enter_ != -1)
                     {
-                        std::cout << "y_err_angle: " << y_target_angle_ - pitch << std::endl;
+                        std::cout << "y_err_angle: " << std::dec << y_target_angle_ - pitch << std::endl;
                         x_err_angle_.push_back(x_target_angle_ - pitch);
                         if (clock() - y_err_angle_t_enter_ >= y_err_angle_t_threshold_)
                         {
@@ -494,7 +494,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
 
                                 waiting_after_moving_ = true;
                                 waiting_t_enter_ = clock();
-                                std::cout << "[Y] 与目标角度误差较大，移动质量块: " << int(10000 * y_err_angle_mean_) << std::endl;
+                                std::cout << "[Y] 与目标角度误差较大，移动质量块: "  << std::dec << int(10000 * y_err_angle_mean_) << std::endl;
                             }
                             y_err_angle_.clear();
                             y_err_angle_t_enter_ = -1;

@@ -113,6 +113,8 @@ private:
     int z_period_threshold_; // 调平判断周期数阈值
     int xy_balancing_cnt_;
     int xy_balancing_cnt_threshold_;
+
+    /* 判断首次调平相关 */
     int first_balancing_sleep_cnt;
     bool if_first_balancing;
     int first_balancing_sleep_time;

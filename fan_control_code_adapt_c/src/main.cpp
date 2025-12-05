@@ -64,7 +64,6 @@ int main() {
     try {
         std::cout << "Connecting..." << std::endl;
         client.connect(connOpts)->wait();
-        std::cout << "Connected." << std::endl;
 
         client.start_consuming();
         client.subscribe(cb.cmd_plane_basic_topic, cb.QOS);
