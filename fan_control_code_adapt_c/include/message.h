@@ -21,9 +21,9 @@ message_data Tail {
 message_data FanControl{ // 0x01
     uint8_t device_id;  // 设备号 00
     uint8_t direction;  // 后三位分别表示x，y，z的力的方向，0表示正向，1表示负向。例如：04（0000 0100）表示x负向，y，z正向
-    uint8_t torque_x;  // X轴方向推力大小
-    uint8_t torque_y;  // Y轴方向推力大小
-    uint8_t torque_z;  // Z轴方向推力大小
+    uint16_t torque_x;  // X轴方向推力大小
+    uint16_t torque_y;  // Y轴方向推力大小
+    uint16_t torque_z;  // Z轴方向推力大小
 };
 
 message_data WheelControl{ // 0x02

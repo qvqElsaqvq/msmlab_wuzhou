@@ -10,9 +10,9 @@ void Fan::sendTorque(float tx, float ty, float tz) {
     if (ty < 0) dir |= 1 << 1;
     if (tz < 0) dir |= 1 << 0;
 
-    auto toUint8_100 = [](float v) {
-        int iv = static_cast<int>(std::fabs(v) * 100.0f);
-        return static_cast<uint8_t>(std::min(255, std::max(0, iv)));
+    auto toUint16_100 = [](float v) {
+        int iv = std::fabs(v) * 100.0;
+        return static_cast<uint16_t>(std::min(65535, std::max(0, iv)));
     };
 
     FanControl fan_control{
@@ -21,18 +21,18 @@ void Fan::sendTorque(float tx, float ty, float tz) {
         // .torque_x = 10,
         // .torque_y = 0,
         // .torque_z = 0,
-        .torque_x = toUint8_100(tx),
-        .torque_y = toUint8_100(ty),
-        .torque_z = toUint8_100(tz),
+        .torque_x = toUint16_100(tx),
+        .torque_y = toUint16_100(ty),
+        .torque_z = toUint16_100(tz),
     };
     ser_.write(0x01, fan_control);
-    // std::cout << "[Fan] Sending direction=" << std::hex << std::setfill('0') << std::setw(2) << (int)dir
+    std::cout << "[Fan] Sending direction=" << std::hex << std::setfill('0') << std::setw(2) << (int)dir
     // << ", torque_x=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_x
     // << ", torque_y=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_y
     // << ", torque_z=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_z << std::endl;
-    // << ", torque_x=" << std::dec << (int)fan_control.torque_x
-    // << ", torque_y=" << std::dec << (int)fan_control.torque_y
-    // << ", torque_z=" << std::dec << (int)fan_control.torque_z << std::endl;
+    << ", torque_x=" << std::dec << (int)fan_control.torque_x
+    << ", torque_y=" << std::dec << (int)fan_control.torque_y
+    << ", torque_z=" << std::dec << (int)fan_control.torque_z << std::endl;
 }
 
 Fan::Fan(msmserial::MsMSerial& serial): ser_(serial)

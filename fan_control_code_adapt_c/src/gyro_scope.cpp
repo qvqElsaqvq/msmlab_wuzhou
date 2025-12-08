@@ -27,7 +27,7 @@ GyroScope::GyroScope(msmserial::MsMSerial& msm_serial): ser_(msm_serial)
         setAngularVelocity(msg.wx / 100.0, msg.wy / 100.0, msg.wz / 100.0);
         setAttitude(msg.roll / 100.0, msg.pitch / 100.0, msg.yaw / 100.0);
 
-        std::cout << "[GyroScope receive] wx=" << std::dec << msg.wx / 100.0 << std::endl;
+        // std::cout << "[GyroScope receive] wx=" << std::dec << msg.wx / 100.0
         // << ", wy=" << msg.wy / 100.0
         // << ", wz=" << msg.wz / 100.0 << std::endl;
         // std::cout << "[GyroScope receive] roll=" << msg.roll / 100.0

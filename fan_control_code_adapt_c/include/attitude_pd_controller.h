@@ -15,7 +15,6 @@
 #include "fan.h"
 
 using Vec3 = Eigen::Vector3d;
-using Quat = Eigen::Quaterniond;
 
 struct PID
 {
@@ -33,19 +32,6 @@ private:
     GyroScope& gyro_;
     Fan& fan_;
 
-    /* ====== 增益 ====== */
-    Vec3 Kp_;
-    Vec3 Kd_;
-
-    /* 外环：角度 → 角速度参考 */
-    Vec3 Kp_anging_;
-    Vec3 Kd_anging_;
-
-    /* 内环：角速度 */
-    Vec3 Kp_rating_;
-    Vec3 Kd_rating_;
-    Vec3 Ki_rating_;
-
     /* PID 状态 */
     Vec3 intRate_ = Vec3::Zero();
     Vec3 prevEr_ = Vec3::Zero();
@@ -53,7 +39,6 @@ private:
 
     /* 目标 */
     Vec3 angleTarget_; // deg
-    Quat qTarget_;
 
     /// 软饱和参数
     double slew_;
@@ -76,7 +61,7 @@ public:
     /// 传入目标欧拉角（ZYX，单位 度）
     void setAttitudeInBalancing(const Vec3& eulerAngleDeg);
     /// X/Y/Z 双环 PID，计算推力器力矩输出
-    PID computeControl(PID pid, Vec3& ref, Vec3& set);
+    PID computeControl(PID& pid, Vec3& ref, Vec3& set);
     /// 供外部读取当前扭矩
     Vec3 getTorque();
 };

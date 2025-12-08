@@ -41,6 +41,7 @@ void do_attitude_control_task(AttitudePDController &controller,
     // std::cout << "姿态控制完成\n";
 }
 
+int send_flag = 0;
 
 int main() {
     msm_serial.spin(true);
@@ -49,6 +50,7 @@ int main() {
     /* MQTT通信部分 */
     CallBack cb;
     mqtt::async_client client(cb.SERVER_ADDRESS, cb.CLIENT_ID);
+    send_flag = 0;
 
     client.set_callback(cb);
 
@@ -108,7 +110,7 @@ int main() {
                     balancer.reset_balance();
                 }
             }
-            else if(cb.getIfReceiveAttitudeControl())
+            else if(1)
             {
                 AttitudeData angle;
                 // AttitudeData angle = cb.getAttitudeData();
@@ -130,66 +132,72 @@ int main() {
             flag_balancing = balancer.getIfFinishBalancing();
             set_balancing = balancer.getIfInBalancing();
 
-            // 数据上发
-            for (int i = 0; i < 1; i++) {
-                Plane data{};
-                data.head.head = 0x4D47;
-                data.tail.checksum = 0x00;
-                data.data.device_id = 0x02;
-                data.data.platform_type = 0xF2;
-                data.data.cmd_count = 0x01;
-                data.data.file_count = 0x01;
-                data.data.platform_status = 0x01;
+            send_flag++;
+            if (send_flag >= 20) {
+                // 数据上发
+                for (int i = 0; i < 1; i++) {
+                    Plane data{};
+                    data.head.head = 0x4D47;
+                    data.tail.checksum = 0x00;
+                    data.data.device_id = 0x02;
+                    data.data.platform_type = 0xF2;
+                    data.data.cmd_count = 0x01;
+                    data.data.file_count = 0x01;
+                    data.data.platform_status = 0x01;
 
-                data.data.gyro_fault = 0x00;
-                data.data.wx = av.wx;
-                data.data.wy = av.wy;
-                data.data.wz = av.wz;
-                data.data.roll = att.roll;
-                data.data.pitch = att.pitch;
-                data.data.yaw = att.yaw;
+                    data.data.gyro_fault = 0x00;
+                    data.data.wx = av.wx;
+                    data.data.wy = av.wy;
+                    data.data.wz = av.wz;
+                    data.data.roll = att.roll;
+                    data.data.pitch = att.pitch;
+                    data.data.yaw = att.yaw;
 
-                data.data.wheel_dir = 0x55;
-                data.data.wheel_current = 100;
-                data.data.wheel_rpm = 3000;
-                data.data.wheel_fault = 0x00;
+                    data.data.wheel_dir = 0x55;
+                    data.data.wheel_current = 100;
+                    data.data.wheel_rpm = 3000;
+                    data.data.wheel_fault = 0x00;
 
-                data.data.payload_mass = 100;
+                    data.data.payload_mass = 100;
 
-                data.data.pwr_v1 = 50;
-                data.data.pwr_v2 = 50;
-                data.data.pwr_v3 = 50;
-                data.data.pwr_v4 = 50;
-                data.data.pwr_i1 = 20;
-                data.data.pwr_i2 = 20;
-                data.data.pwr_i3 = 20;
-                data.data.pwr_i4 = 20;
-                data.data.battery_percent = 70;
+                    data.data.pwr_v1 = 50;
+                    data.data.pwr_v2 = 50;
+                    data.data.pwr_v3 = 50;
+                    data.data.pwr_v4 = 50;
+                    data.data.pwr_i1 = 20;
+                    data.data.pwr_i2 = 20;
+                    data.data.pwr_i3 = 20;
+                    data.data.pwr_i4 = 20;
+                    data.data.battery_percent = 70;
 
-                data.data.traj_ready = 0x01;
+                    data.data.traj_ready = 0x01;
 
-                data.data.thrust_x = 0;
-                data.data.thrust_y = 0;
-                data.data.thrust_z = 0;
-                data.data.torque_roll = 300;
-                data.data.torque_pitch = 300;
-                data.data.torque_yaw = 300;
+                    data.data.thrust_x = 0;
+                    data.data.thrust_y = 0;
+                    data.data.thrust_z = 0;
+                    data.data.torque_roll = 300;
+                    data.data.torque_pitch = 300;
+                    data.data.torque_yaw = 300;
 
-                data.data.balance_flag = flag_balancing;
-                data.data.balance_set = set_balancing;
-                data.data.fan_calibration_flag = flag_fan_calibration;
-                data.data.fan_calibration_set = set_fan_calibration;
+                    data.data.balance_flag = flag_balancing;
+                    data.data.balance_set = set_balancing;
+                    data.data.fan_calibration_flag = flag_fan_calibration;
+                    data.data.fan_calibration_set = set_fan_calibration;
 
-                for (int i = 0; i < 7; i++) {
-                    data.data.reserved[i] = 0x00;
-                }
-                client.publish(cb.plane_data_topic, &data, sizeof(data), cb.QOS, false);
+                    for (int i = 0; i < 7; i++) {
+                        data.data.reserved[i] = 0x00;
+                    }
+                    client.publish(cb.plane_data_topic, &data, sizeof(data), cb.QOS, false);
+                    // std::cout << "---------send upper---------" << std::endl;
+                    send_flag = 0;
+            }
+
                 // std::cout << "Publish Plane: " << sizeof(data) << std::endl;
                 // std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
             // 控制循环频率
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
     } catch (const mqtt::exception &e) {
         std::cerr << "Mqtt Error: " << e.what() << std::endl;
