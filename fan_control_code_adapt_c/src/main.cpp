@@ -90,7 +90,7 @@ int main() {
         target.yaw = 0;
         while (true) {
             // 接收数据更新并执行流程
-            if(cb.getIfNeedBalancing())
+            if(1)
             {
                 if(!current_balance_status)
                 {
@@ -110,7 +110,7 @@ int main() {
                     balancer.reset_balance();
                 }
             }
-            else if(1)
+            else if(0)
             {
                 AttitudeData angle;
                 // AttitudeData angle = cb.getAttitudeData();

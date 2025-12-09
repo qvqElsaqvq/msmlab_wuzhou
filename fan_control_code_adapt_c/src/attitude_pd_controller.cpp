@@ -100,7 +100,7 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     wCmd.out[2] = -wCmd.out[2];
     // angle_pid_ = wCmd;
     // std::cout << "last_error: " << angle_pid_.last_error << std::endl;
-    std::cout << "angle out: " << wCmd.out[0] << ", " << wCmd.out[1] << ", " << wCmd.out[2] << std::endl;
+    // std::cout << "angle out: " << wCmd.out[0] << ", " << wCmd.out[1] << ", " << wCmd.out[2] << std::endl;
     PID tauCmd = computeControl(v_pid_, wCurrentDeg, wCmd.out);
     // v_pid_ = tauCmd;
 
@@ -111,7 +111,7 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     torque_x = tauCmd.out[0];
     torque_y = tauCmd.out[1];
     torque_z = tauCmd.out[2];
-    std::cout << "torque_x=" << torque_x << ", torque_y=" << torque_y << ", torque_z=" << torque_z << std::endl;
+    // std::cout << "torque_x=" << torque_x << ", torque_y=" << torque_y << ", torque_z=" << torque_z << std::endl;
 
     // 软饱和
     // double tx = 0.5;

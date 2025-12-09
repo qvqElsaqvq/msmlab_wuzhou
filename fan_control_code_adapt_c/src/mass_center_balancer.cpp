@@ -69,7 +69,7 @@ MassCenterBalancer::MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewContr
     if_20_ok_ = false;
     first_balancing_sleep_cnt = 0;
     if_first_balancing = true;
-    first_balancing_sleep_time = 30;
+    first_balancing_sleep_time = 10;
 }
 
 void MassCenterBalancer::balance_both_axes_fan()
@@ -98,7 +98,7 @@ void MassCenterBalancer::balance_both_axes_fan()
     // while (!(flag_x_ && flag_y_))
     // {
         // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
-        controller_.setAttitudeInBalancing({0.0, 0.0, 120.0});
+        controller_.setAttitudeInBalancing({0.0, 0.0, 0.0});
 
         if (if_first_balancing)
         {
@@ -112,13 +112,11 @@ void MassCenterBalancer::balance_both_axes_fan()
         }
         else
         {
-            // std::cout << "-----------------------" << std::endl;
             wait_steady_and_sample_outputs();
 
             if (if_end_sampling_)
             {
-                std::cout << "稳态平均输出: Tx≈" << std::to_string(tx_mean_) << " Ty≈" << std::to_string(ty_mean_) <<
-                    std::endl;
+                std::cout << "稳态平均输出: Tx≈" << tx_mean_ << " Ty≈" << ty_mean_ << std::endl;
 
                 // 2. 终止判据
                 if (std::abs(tx_mean_) <= torque_done && std::abs(ty_mean_) <= torque_done)
@@ -339,12 +337,13 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
     // 等待进入稳态
     if (!if_in_steady_state_)
     {
+        // std::cout << "-----------------------" << std::endl;
         if_end_sampling_ = false;
         if_begin_sampling_ = false;
 
         if (waiting_after_moving_)
         {
-            if (clock() - waiting_t_enter_ >= waiting_time_)
+            if ((clock() - waiting_t_enter_) / CLOCKS_PER_SEC * 20 >= waiting_time_)
             {
                 waiting_after_moving_ = false;
                 std::cout << "调后等待时间结束" << std::endl;
@@ -358,6 +357,8 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
             double roll = att.x;
             double pitch = att.y;
             double yaw = att.z;
+
+            // std::cout << "rpy: " << roll << ", " << pitch << ", " << yaw << std::endl;
 
             double target_angle_roll = 0.0;
             double target_angle_pitch = 0.0;
@@ -376,9 +377,9 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
             last_roll_ = roll;
             last_pitch_ = pitch;
             last_yaw_ = yaw;
-            auto now = clock();
             if (err_ok)
             {
+                // std::cout << "err_ok!!!!!!!!!!!!!!!!" << std::endl;
                 if (t_enter_ == -1)
                 {
                     z_err_angle_.clear();
@@ -386,7 +387,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                     t_enter_ = clock();
                     std::cout << "`````````````````开始稳态计时``````````````````" << std::endl;
                 }
-                if (clock() - t_enter_ >= dwell_time_)
+                if ((clock() - t_enter_) / CLOCKS_PER_SEC * 20 >= dwell_time_)
                 {
                     if_in_steady_state_ = true;
                     if_begin_sampling_ = true;
@@ -408,7 +409,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                     if (z_err_angle_t_enter_ != -1)
                     {
                         z_err_angle_.push_back(z_target_angle_ - pitch);
-                        if (clock() - z_err_angle_t_enter_ >= z_err_angle_t_threshold_)
+                        if ((clock() - z_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= z_err_angle_t_threshold_)
                         {
                             if (z_err_angle_.size() > 0)
                             {
@@ -447,7 +448,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                         // std::cout << "time=" << (clock() - x_err_angle_t_enter_) / CLOCKS_PER_SEC << std::endl;
                         if ((clock() - x_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= x_err_angle_t_threshold_)
                         {
-                            std::cout << "--------------------------------" << std::endl;
+                            // std::cout << "--------------------------------" << std::endl;
                             if (x_err_angle_.size() > 0)
                                 x_err_angle_mean_ = std::accumulate(x_err_angle_.begin(), x_err_angle_.end(), 0.0)
                                     / x_err_angle_.size();
@@ -478,7 +479,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
                     {
                         std::cout << "y_err_angle: " << std::dec << y_target_angle_ - pitch << std::endl;
                         x_err_angle_.push_back(x_target_angle_ - pitch);
-                        if (clock() - y_err_angle_t_enter_ >= y_err_angle_t_threshold_)
+                        if ((clock() - y_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= y_err_angle_t_threshold_)
                         {
                             if (y_err_angle_.size() > 0)
                                 y_err_angle_mean_ = std::accumulate(y_err_angle_.begin(), y_err_angle_.end(), 0.0)
@@ -519,12 +520,12 @@ void MassCenterBalancer::wait_steady_and_sample_outputs()
     // 稳态采样控制输出（平均值）
     if (if_in_steady_state_)
     {
-        if (clock() - sample_t_enter_ < sample_time_)
+        if ((clock() - sample_t_enter_) / CLOCKS_PER_SEC * 20 < sample_time_)
         {
             // 这里直接读控制器上一次输出的扭矩
             auto tau = controller_.getTorque();
-            xs_.push_back(tau.x());
-            ys_.push_back(tau.y());
+            xs_.push_back(tau.x() / 10.0);
+            ys_.push_back(tau.y() / 10.0);
         }
         else
         {
