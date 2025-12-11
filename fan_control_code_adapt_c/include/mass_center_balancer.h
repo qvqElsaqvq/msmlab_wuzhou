@@ -119,6 +119,11 @@ private:
     bool if_first_balancing;
     int first_balancing_sleep_time;
 
+    /* 调平Z轴时间隔时间 */
+    int z_change_attitude_sleep_cnt;
+    bool if_in_z_changing_attitude;
+    int z_change_attitude_sleep_time;
+
     /* 调平相关标志位 */
     bool if_in_steady_state_;  // 是否在稳态状态
     bool waiting_after_moving_;  // 每次移动质量块后等待5s
