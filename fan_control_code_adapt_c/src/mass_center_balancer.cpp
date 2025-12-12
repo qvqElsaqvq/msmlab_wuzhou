@@ -187,7 +187,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
     int min_step_s = 5;
     int max_step_s = 1000;
 
-    double torque_z_threshold = 7;
+    double torque_z_threshold = 7.0;
     double torque_done = 5.0; // 允许的回升力矩上限（Nm）
     double pitch_metric = 0.0;
     double prev_dir_z = 0; // 方向
@@ -211,27 +211,31 @@ void MassCenterBalancer::balance_z_axes_fan() {
         if (z_change_attitude_sleep_cnt >= z_change_attitude_sleep_time / settle_wait_) {
             if_in_z_changing_attitude = false;
             z_change_attitude_sleep_cnt = 0;
-            std::cout << "Z轴角度调整等待时间结束" << std::endl;
+            std::cout << "~~~~~~~~~~~~~Z轴角度调整等待时间结束~~~~~~~~~~~~~" << std::endl;
         }
     }
     else {
         // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
         if (!if_return_zero_) {
             z_target_angle_ = 0.0;
-            std::cout << "z_target_angle: " << z_target_angle_ << std::endl;
+            // std::cout << "z_target_angle: " << z_target_angle_ << std::endl;
+
             controller_.setAttitudeInBalancing({0.0, z_target_angle_, 0.0});
             auto att = gyro_.getAttitude(); // 获取当前rpy
             double roll = att.x;
             double pitch = att.y;
             double yaw = att.z;
+
             if (abs(yaw) < 0.5 && abs(pitch) < 0.5 && abs(roll) < 0.5) {
                 std::cout << "[FAN-Z] 回到 0,0,0" << std::endl;
                 if_return_zero_ = true; // 已经回到 0,0,0
                 if_in_steady_state_ = false;
                 std::cout << "[FAN-Z] 在 [0,15,0] 进行调平" << std::endl;
-                std::cout << "角度调整等待中" << std::endl;
+
+                std::cout << "+++++++++++++++++角度调整 15°, 等待中+++++++++++++++++" << std::endl;
                 if_in_z_changing_attitude = true;
                 z_change_attitude_sleep_cnt = 0;
+                z_change_attitude_sleep_time = 30;
             }
         }
         if (if_return_zero_ && !if_finish_testing_ty_) // 已经回到 0,0,0
@@ -244,7 +248,9 @@ void MassCenterBalancer::balance_z_axes_fan() {
                 z_target_angle_ = 20.0;
             else if (!pitch_metric_finish_)
                 z_target_angle_ = 30.0;
+
             controller_.setAttitudeInBalancing({0.0, z_target_angle_, 0.0});
+
             wait_steady_and_sample_outputs();
 
             if (if_end_sampling_) {
@@ -265,25 +271,31 @@ void MassCenterBalancer::balance_z_axes_fan() {
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 15° 调平完成" << std::endl;
                     z_target_angle_ = 20.0;
-                    std::cout << "角度调整：20°, 等待中" << std::endl;
+
+                    std::cout << "+++++++++++++++++角度调整：20°, 等待中+++++++++++++++++" << std::endl;
                     if_in_z_changing_attitude = true;
                     z_change_attitude_sleep_cnt = 0;
+                    z_change_attitude_sleep_time = 10;
+
                     return;
                 } else if (!if_20_ok_) {
                     if_20_ok_ = true;
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 20° 调平完成" << std::endl;
                     z_target_angle_ = 30.0;
-                    std::cout << "角度调整 30° 等待中" << std::endl;
+
+                    std::cout << "+++++++++++++++++角度调整 30° 等待中+++++++++++++++++" << std::endl;
                     if_in_z_changing_attitude = true;
                     z_change_attitude_sleep_cnt = 0;
+                    z_change_attitude_sleep_time = 20;
+
                     return;
                 } else if (!pitch_metric_finish_) {
                     if_finish_testing_ty_ = false;
-                    std::cout << "[FAN-Z] 在 30° 调平完成" << std::endl;
                     if_finish_balancing_ = true;
                     if_set_balancing_ = false;
                     pitch_metric_finish_ = true;
+                    // std::cout << "[FAN-Z] 在 30° 调平完成" << std::endl;
                     std::cout << "[FAN-Z] Z 轴调平完成！ if_finish_balancing= " << if_finish_balancing_ << std::endl;
                     return;
                 }
@@ -340,6 +352,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
             if ((clock() - waiting_t_enter_) / CLOCKS_PER_SEC * 20 >= waiting_time_) {
                 waiting_after_moving_ = false;
                 std::cout << "调后等待时间结束" << std::endl;
+                t_enter_ = -1;
             } else
                 return;
         } else {
@@ -393,7 +406,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                         z_err_angle_.clear();
                     }
                     if (z_err_angle_t_enter_ != -1) {
-                        // std::cout << "ZZZZZZZZZZZZZZZZZZZZZZ" << std::endl;
+                        std::cout << "ZZZZZZZZZZZZZZZZZZZZZZ" << std::endl;
                         z_err_angle_.push_back(z_target_angle_ - pitch);
                         if ((clock() - z_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= z_err_angle_t_threshold_) {
                             if (z_err_angle_.size() > 0) {
