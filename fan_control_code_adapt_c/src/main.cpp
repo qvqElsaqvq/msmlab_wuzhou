@@ -90,29 +90,26 @@ int main() {
         target.yaw = 0;
         while (true) {
             // 接收数据更新并执行流程
-            if(1)
+            if(1) // cb.getIfNeedBalancing()
             {
                 if(!current_balance_status)
                 {
                     std::cout << "执行自动调平算法...\n";
-                    std::vector<int16_t> action{-1000};
+                    std::vector<int16_t> action{-5000};
                     leadscrew.moveTo(action); // 先降 Z 轴质量块
-                    std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 -1000" << std::endl;
+                    std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 -5000" << std::endl;
                     current_balance_status = true;
                 }
 
                 balancer.balance_axes();
-                if(balancer.getIfFinishBalancing())
-                {
+                if (balancer.getIfFinishBalancing()) {
                     cb.setFlagBalance(true);
-                    current_balance_status = false;
+                    // current_balance_status = false;
                     flag_balancing = true;
                     set_balancing = false;
                     balancer.reset_balance();
                 }
-            }
-            else if(0)
-            {
+            } else if (0) { // cb.getIfReceiveAttitudeControl()
                 AttitudeData angle;
                 // AttitudeData angle = cb.getAttitudeData();
                 angle.pitch = 0.0;
@@ -126,7 +123,7 @@ int main() {
 
             // 发送数据更新并上发
             auto gyro_att = gyro.getAttitude();
-            Attitude att{gyro_att.x,gyro_att.y,gyro_att.z};
+            Attitude att{gyro_att.x, gyro_att.y, gyro_att.z};
             auto gyro_av = gyro.getAngularVelocity();
             AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};
 
@@ -191,10 +188,7 @@ int main() {
             //         client.publish(cb.plane_data_topic, &data, sizeof(data), cb.QOS, false);
             //         // std::cout << "---------send upper---------" << std::endl;
             //         send_flag = 0;
-            // }
-
-                // std::cout << "Publish Plane: " << sizeof(data) << std::endl;
-                // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            //     }
             // }
 
             // 控制循环频率

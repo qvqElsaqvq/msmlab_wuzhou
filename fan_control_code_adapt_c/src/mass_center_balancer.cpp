@@ -93,7 +93,7 @@ void MassCenterBalancer::balance_both_axes_fan() {
 
     tol_deg_ = 0.1;
     dwell_time_ = 10.0; // 稳态保持计时时间
-    sample_time_ = 10.0; // 采样时间
+    sample_time_ = 8.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
     // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
@@ -179,13 +179,13 @@ void MassCenterBalancer::balance_z_axes_fan() {
     int min_step;
     int max_step;
     // 回升力矩较大时的扭矩→步长比例
-    int kz_l = 1000; // step/N·m
+    int kz_l = 1200; // step/N·m
     int min_step_l = 100;
-    int max_step_l = 3000;
+    int max_step_l = 4000;
     // 回升力矩较小时的扭矩→步长比例
-    int kz_s = 500; // step/N·m（保守）
+    int kz_s = 300; // step/N·m（保守）
     int min_step_s = 5;
-    int max_step_s = 1000;
+    int max_step_s = 1500;
 
     double torque_z_threshold = 7.0;
     double torque_done = 5.0; // 允许的回升力矩上限（Nm）
@@ -195,7 +195,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
 
     tol_deg_ = 0.1;
     dwell_time_ = 10.0; // 稳态保持计时时间
-    sample_time_ = 15.0; // 采样时间
+    sample_time_ = 12.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
     if (if_in_z_changing_attitude) {
@@ -211,6 +211,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
         if (z_change_attitude_sleep_cnt >= z_change_attitude_sleep_time / settle_wait_) {
             if_in_z_changing_attitude = false;
             z_change_attitude_sleep_cnt = 0;
+            z_err_angle_t_enter_ = -1;
             std::cout << "~~~~~~~~~~~~~Z轴角度调整等待时间结束~~~~~~~~~~~~~" << std::endl;
         }
     }
@@ -235,7 +236,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
                 std::cout << "+++++++++++++++++角度调整 15°, 等待中+++++++++++++++++" << std::endl;
                 if_in_z_changing_attitude = true;
                 z_change_attitude_sleep_cnt = 0;
-                z_change_attitude_sleep_time = 30;
+                z_change_attitude_sleep_time = 50;
             }
         }
         if (if_return_zero_ && !if_finish_testing_ty_) // 已经回到 0,0,0
@@ -270,15 +271,17 @@ void MassCenterBalancer::balance_z_axes_fan() {
                     if_15_ok_ = true;
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 15° 调平完成" << std::endl;
-                    z_target_angle_ = 20.0;
+                    z_target_angle_ = 30.0;
 
-                    std::cout << "+++++++++++++++++角度调整：20°, 等待中+++++++++++++++++" << std::endl;
+                    std::cout << "+++++++++++++++++角度调整：30°, 等待中+++++++++++++++++" << std::endl;
                     if_in_z_changing_attitude = true;
                     z_change_attitude_sleep_cnt = 0;
-                    z_change_attitude_sleep_time = 10;
+                    z_change_attitude_sleep_time = 40;
+
+                    if_20_ok_ = true;
 
                     return;
-                } else if (!if_20_ok_) {
+                } else if (!if_20_ok_) { // 已废弃20° 调平
                     if_20_ok_ = true;
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 20° 调平完成" << std::endl;
@@ -302,14 +305,14 @@ void MassCenterBalancer::balance_z_axes_fan() {
             }
 
             // 4) 方向与步长（保守，不跨边界：方向翻转自动减半）
-            if (pitch_metric > 0)
+            if (pitch_metric < 0)
                 raw_sign = +1;
-            else if (pitch_metric < 0)
+            else if (pitch_metric > 0)
                 raw_sign = -1;
             else
                 raw_sign = 0;
 
-            if (pitch_metric >= torque_z_threshold) {
+            if (fabs(pitch_metric) >= torque_z_threshold) {
                 kz = kz_l;
                 min_step = min_step_l;
                 max_step = max_step_l;
@@ -361,7 +364,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
             double pitch = att.y;
             double yaw = att.z;
 
-            std::cout << "rpy: " << roll << ", " << pitch << ", " << yaw << std::endl;
+            // std::cout << "rpy: " << roll << ", " << pitch << ", " << yaw << std::endl;
 
             double target_angle_roll = 0.0;
             double target_angle_pitch = 0.0;
@@ -379,7 +382,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
             last_roll_ = roll;
             last_pitch_ = pitch;
             last_yaw_ = yaw;
-            std::cout << "err_ok:" << err_ok << std::endl;
+            // std::cout << "err_ok:" << err_ok << std::endl;
             if (err_ok) {
                 if (t_enter_ == -1) {
                     z_err_angle_.clear();
@@ -395,18 +398,18 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
             } else {
                 t_enter_ = -1;
                 // std::cout << "`````````````````稳态计时重置``````````````````" << std::endl;
-                std::cout << "is_balancing_z: " << is_balancing_z_ << std::endl;
+                // std::cout << "is_balancing_z: " << is_balancing_z_ << std::endl;
 
                 if (is_balancing_z_) // 调 Z 轴过程中
                 {
                     // std::cout << "z_err_angle_t_enter: " << z_err_angle_t_enter_ << std::endl;
-                    std::cout << "z_target_angle_: " << z_target_angle_ << std::endl;
+                    // std::cout << "z_target_angle_: " << z_target_angle_ << std::endl;
                     if (z_err_angle_t_enter_ == -1 && fabs(z_target_angle_ - pitch) >= 0.3) {
                         z_err_angle_t_enter_ = clock();
                         z_err_angle_.clear();
                     }
                     if (z_err_angle_t_enter_ != -1) {
-                        std::cout << "ZZZZZZZZZZZZZZZZZZZZZZ" << std::endl;
+                        std::cout << "z_err_angle: "<< z_target_angle_ - pitch << std::endl;
                         z_err_angle_.push_back(z_target_angle_ - pitch);
                         if ((clock() - z_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= z_err_angle_t_threshold_) {
                             if (z_err_angle_.size() > 0) {
@@ -415,15 +418,19 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                             } else
                                 z_err_angle_mean_ = 0.0;
                             // std::cout << "z_err_angle_mean: " << z_err_angle_mean_ << std::endl;
-                            if (z_err_angle_mean_ >= 0.3) // 移动质量块
+                            if (fabs(z_err_angle_mean_) >= 0.3) // 移动质量块
                             {
                                 std::vector<int16_t> action;
-                                action.push_back(int(z_err_angle_mean_ * 1500));
+                                int step = int(z_err_angle_mean_ * 8000);
+                                if (step > 0) // 限幅
+                                    step = std::min(30000, step);
+                                else if (step < 0)
+                                    step = std::max(-30000, step);
+                                action.push_back(step);
                                 leadscrew_.moveTo(action);
                                 waiting_after_moving_ = true;
                                 waiting_t_enter_ = clock();
-                                std::cout << "[Z] 与目标角度误差较大，移动质量块: " << std::dec << int(1500 * z_err_angle_mean_) <<
-                                        std::endl;
+                                std::cout << "[Z] 与目标角度误差较大，移动质量块: " << std::dec << step << std::endl;
                             }
                             z_err_angle_.clear();
                             z_err_angle_t_enter_ = -1;
@@ -437,12 +444,9 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                         x_err_angle_.clear();
                     }
                     if (x_err_angle_t_enter_ != -1) {
-                        // std::cout << "x_target_angle_: " << x_target_angle_ << std::endl;
-                        // std::cout << "roll: " << roll << std::endl;
+                        std::cout << "x_err_angle: " << std::dec << x_target_angle_ - roll << std::endl;
                         x_err_angle_.push_back(x_target_angle_ - roll);
-                        // std::cout << "time=" << (clock() - x_err_angle_t_enter_) / CLOCKS_PER_SEC << std::endl;
                         if ((clock() - x_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= x_err_angle_t_threshold_) {
-                            // std::cout << "--------------------------------" << std::endl;
                             if (x_err_angle_.size() > 0)
                                 x_err_angle_mean_ = std::accumulate(x_err_angle_.begin(), x_err_angle_.end(), 0.0)
                                                     / x_err_angle_.size();
@@ -470,7 +474,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                         y_err_angle_.clear();
                     }
                     if (y_err_angle_t_enter_ != -1) {
-                        // std::cout << "y_err_angle: " << std::dec << y_target_angle_ - pitch << std::endl;
+                        std::cout << "y_err_angle: " << std::dec << y_target_angle_ - pitch << std::endl;
                         y_err_angle_.push_back(y_target_angle_ - pitch);
                         if ((clock() - y_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= y_err_angle_t_threshold_) {
                             if (y_err_angle_.size() > 0)
