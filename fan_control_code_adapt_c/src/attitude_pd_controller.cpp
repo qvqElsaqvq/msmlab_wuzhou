@@ -7,7 +7,10 @@
 using Vec3 = Eigen::Vector3d;
 using Quat = Eigen::Quaterniond;
 
-AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan): gyro_(gyro), fan_(fan)
+AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& wheel):
+    gyro_(gyro),
+    fan_(fan),
+    wheel_(wheel)
 {
     std::cout << "[AttitudePDController] init" << std::endl;
 
@@ -19,6 +22,11 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan): gyro_(gyr
     torque_y = 0.0;
     torque_z = 0.0;
 
+    start_toq_ = 50;
+
+    if_finish_balancing_ = false;
+
+    /* PID输出值初始化 */
     angle_pid_.Dout = Vec3(0.0, 0, 0);
     angle_pid_.Pout = Vec3(0, 0, 0);
     angle_pid_.Iout = Vec3(0, 0, 0);
@@ -30,10 +38,36 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan): gyro_(gyr
     v_pid_.last_error = Vec3(0, 0, 0);
     v_pid_.out = Vec3(0, 0, 0);
 
+    wheel_pid_x_.Dout = Vec3(0, 0, 0);
+    wheel_pid_x_.Pout = Vec3(0, 0, 0);
+    wheel_pid_x_.Iout = Vec3(0, 0, 0);
+    wheel_pid_x_.last_error = Vec3(0, 0, 0);
+    wheel_pid_x_.out = Vec3(0, 0, 0);
+
+    wheel_pid_y_.Dout = Vec3(0, 0, 0);
+    wheel_pid_y_.Pout = Vec3(0, 0, 0);
+    wheel_pid_y_.Iout = Vec3(0, 0, 0);
+    wheel_pid_y_.last_error = Vec3(0, 0, 0);
+    wheel_pid_y_.out = Vec3(0, 0, 0);
+
+    wheel_pid_z_.Dout = Vec3(0, 0, 0);
+    wheel_pid_z_.Pout = Vec3(0, 0, 0);
+    wheel_pid_z_.Iout = Vec3(0, 0, 0);
+    wheel_pid_z_.last_error = Vec3(0, 0, 0);
+    wheel_pid_z_.out = Vec3(0, 0, 0);
+
+    /* PID上限阈值 */
     angle_pid_.max_i_out = Vec3(0, 0, 0);
     angle_pid_.max_out = Vec3(1, 1, 3);
     v_pid_.max_i_out = Vec3(50, 50, 100);
     v_pid_.max_out = Vec3(600, 600, 600);
+
+    wheel_pid_x_.max_i_out = Vec3(0, 0, 0);
+    wheel_pid_x_.max_out = Vec3(3000, 0, 0);
+    wheel_pid_y_.max_i_out = Vec3(0, 0, 0);
+    wheel_pid_y_.max_out = Vec3(3000, 0, 0);
+    wheel_pid_z_.max_i_out = Vec3(0, 0, 0);
+    wheel_pid_z_.max_out = Vec3(3000, 0, 0);
 
     /* PID参数 */
     angle_pid_.Kp = Vec3(0.8, 0.8, 0.8);
@@ -43,12 +77,23 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan): gyro_(gyr
     v_pid_.Kp = Vec3(180, 175, 200);
     v_pid_.Ki = Vec3(0.2, 0.4, 0.5);
     v_pid_.Kd = Vec3(0, 0, 0);
+
+    wheel_pid_x_.Kp = Vec3(6000, 0, 0);
+    wheel_pid_x_.Ki = Vec3(0.0, 0.0, 0.0);
+    wheel_pid_x_.Kd = Vec3(5000, 0, 0);
+
+    wheel_pid_y_.Kp = Vec3(6000, 0, 0);
+    wheel_pid_y_.Ki = Vec3(0.0, 0.0, 0.0);
+    wheel_pid_y_.Kd = Vec3(5000, 0, 0);
+
+    wheel_pid_z_.Kp = Vec3(6000, 0, 0);
+    wheel_pid_z_.Ki = Vec3(0.0, 0.0, 0.0);
+    wheel_pid_z_.Kd = Vec3(5000, 0, 0);
 }
 
 PID AttitudePDController::computeControl(PID& pid, Vec3& ref, Vec3& set)
 {
     Vec3 error = set - ref;
-
 
     pid.Pout = pid.Kp.array() * error.array();
     pid.Iout.array() += pid.Ki.array() * error.array();
@@ -85,7 +130,6 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
      */
 
     angleTarget_ = eulerAngleDeg;
-    // std::cout << "angleTarget_: " << angleTarget_ << std::endl;
 
     /* 读当前姿态 */
     auto av = gyro_.getAngularVelocity();  // °/s
@@ -95,35 +139,87 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
 
     /* X/Y/Z 双环 PID */
     PID wCmd = computeControl(angle_pid_, angleCurrentDeg, angleTarget_);
-    // wCmd.out[0] = -1;
     wCmd.out[1] = -wCmd.out[1];
     wCmd.out[2] = -wCmd.out[2];
-    // angle_pid_ = wCmd;
     // std::cout << "last_error: " << angle_pid_.last_error << std::endl;
     // std::cout << "angle out: " << wCmd.out[0] << ", " << wCmd.out[1] << ", " << wCmd.out[2] << std::endl;
+
     PID tauCmd = computeControl(v_pid_, wCurrentDeg, wCmd.out);
-    // v_pid_ = tauCmd;
-
-    // tauCmd.out[0];
-    // tauCmd.out[1] = 0.0;
-    // tauCmd.out[2] = 0.0;
-
     torque_x = tauCmd.out[0];
     torque_y = tauCmd.out[1];
     torque_z = tauCmd.out[2];
     // std::cout << "torque_x=" << torque_x << ", torque_y=" << torque_y << ", torque_z=" << torque_z << std::endl;
 
-    // 软饱和
-    // double tx = 0.5;
-    // double ty = -0.5;
-    // double tx = std::tanh(tauCmd.out[0] / 120.0);
-    // double ty = std::tanh(tauCmd.out[1] / 120.0);
-    // double tz = std::tanh(tauCmd.out[2] / 300.0);
-    // std::cout << "tx: " << torque_x << ", ty: " << torque_y << ", tz: " << torque_z << std::endl;
-
     // 下发力矩
-    // fan_.sendTorque(static_cast<float>(tx), 0, 0);
     fan_.sendTorque(torque_x, torque_y, torque_z);
+
+    /* 动量轮参与控制 */
+    if(if_finish_balancing_)
+    {
+        if(fabs(angleTarget_.x() - at.x) < 0.5)
+        {
+            PID pid_x = computeControl(wheel_pid_x_, angleCurrentDeg, angleTarget_);
+            uint8_t dir;
+            if(pid_x.out[0] > 0)
+            {
+                pid_x.out[0] += start_toq_;
+                dir = 0x55;
+            }
+            else if(pid_x.out[0] < 0)
+            {
+                pid_x.out[0] -= start_toq_;
+                dir = 0xAA;
+            }
+            else
+            {
+                pid_x.out[0] = 0;
+                dir = 0x55;
+            }
+            wheel_.sendFrame(0x03, dir, pid_x.out[0]);
+        }
+        if(fabs(angleTarget_.y() - at.y) < 0.5)
+        {
+            PID pid_y = computeControl(wheel_pid_y_, angleCurrentDeg, angleTarget_);
+            uint8_t dir;
+            if(pid_y.out[0] > 0)
+            {
+                pid_y.out[0] += start_toq_;
+                dir = 0x55;
+            }
+            else if(pid_y.out[0] < 0)
+            {
+                pid_y.out[0] -= start_toq_;
+                dir = 0xAA;
+            }
+            else
+            {
+                pid_y.out[0] = 0;
+                dir = 0x55;
+            }
+            wheel_.sendFrame(0x02, dir, pid_y.out[0]);
+        }
+        if(fabs(angleTarget_.z() - at.z) < 0.5)
+        {
+            PID pid_z = computeControl(wheel_pid_z_, angleCurrentDeg, angleTarget_);
+            uint8_t dir;
+            if(pid_z.out[0] > 0)
+            {
+                pid_z.out[0] += start_toq_;
+                dir = 0x55;
+            }
+            else if(pid_z.out[0] < 0)
+            {
+                pid_z.out[0] -= start_toq_;
+                dir = 0xAA;
+            }
+            else
+            {
+                pid_z.out[0] = 0;
+                dir = 0x55;
+            }
+            wheel_.sendFrame(0x01, dir, pid_z.out[0]);
+        }
+    }
 }
 
 Vec3 AttitudePDController::getTorque()
@@ -133,4 +229,9 @@ Vec3 AttitudePDController::getTorque()
     current_torque.y() = torque_y;
     current_torque.z() = torque_z;
     return current_torque;
+}
+
+void AttitudePDController::setIfFinishBalancing(bool if_finish_balancing)
+{
+    if_finish_balancing_ = if_finish_balancing;
 }

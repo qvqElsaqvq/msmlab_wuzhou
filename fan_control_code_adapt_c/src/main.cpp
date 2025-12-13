@@ -22,7 +22,7 @@ GyroScope gyro(msm_serial);
 LeadScrewController leadscrew(msm_serial);
 Wheel wheel(msm_serial);
 Fan fan(msm_serial);
-AttitudePDController controller(gyro, fan);
+AttitudePDController controller(gyro, fan, wheel);
 MassCenterBalancer balancer(gyro, fan, leadscrew, wheel, controller);
 
 /* ---------------- 线程任务 ---------------- */
@@ -46,6 +46,8 @@ int send_flag = 0;
 int main() {
     msm_serial.spin(true);
     // std::cout << "[测试串口通信]" << std::endl;
+
+    bool if_finish_balancing = false;
 
     /* MQTT通信部分 */
     CallBack cb;
@@ -102,7 +104,9 @@ int main() {
                 }
 
                 balancer.balance_axes();
-                if (balancer.getIfFinishBalancing()) {
+                if_finish_balancing = balancer.getIfFinishBalancing();
+                controller.setIfFinishBalancing(if_finish_balancing);
+                if (if_finish_balancing) {
                     cb.setFlagBalance(true);
                     // current_balance_status = false;
                     flag_balancing = true;

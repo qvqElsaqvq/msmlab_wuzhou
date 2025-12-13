@@ -32,23 +32,12 @@ public:
         uint8_t dir = 0;
         uint8_t current = 0.f;
     };
-    struct PID
-    {
-        Vec3 Kp, Ki, Kd;  // rpy轴PID参数
-        Vec3 Pout, Iout, Dout;
-        Vec3 last_error;
-        Vec3 max_i_out;
-        Vec3 max_out;
-        Vec3 out;  // pid输出量
-    };
 
 private:
     msmserial::MsMSerial& ser_;
 
     Control wheel_control_;
     Status wheel_status_;
-
-    PID wheel_pid_;
 
 public:
     explicit Wheel(msmserial::MsMSerial& serial);
@@ -58,8 +47,6 @@ public:
     void setStauts(uint8_t wheel_id, uint8_t dir, uint8_t speed);
 
     Status getStatus();
-
-    PID computePID(PID pid, Vec3& ref, Vec3& set);
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_WHEEL_H
