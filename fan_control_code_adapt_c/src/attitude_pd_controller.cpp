@@ -39,16 +39,16 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
     /* PID上限阈值 */
     angle_pid_.max_i_out = Vec3(0, 0, 0);
     angle_pid_.max_out = Vec3(1, 1, 3);
-    v_pid_.max_i_out = Vec3(20, 20, 10);
-    v_pid_.max_out = Vec3(200, 200, 200);
+    v_pid_.max_i_out = Vec3(50, 30, 100);
+    v_pid_.max_out = Vec3(600, 600, 600);
 
     /* PID参数 */
     angle_pid_.Kp = Vec3(0.8, 0.8, 0.8);
     angle_pid_.Ki = Vec3(0, 0, 0);
-    angle_pid_.Kd = Vec3(30, 30, 45);
+    angle_pid_.Kd = Vec3(30, 45, 45);
 
-    v_pid_.Kp = Vec3(35, 35, 20);
-    v_pid_.Ki = Vec3(0.06, 0.06, 0.02);
+    v_pid_.Kp = Vec3(180, 270, 200);
+    v_pid_.Ki = Vec3(0.2, 1.0, 0.5);
     v_pid_.Kd = Vec3(0, 0, 0);
 }
 
@@ -100,6 +100,7 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
 
     /* X/Y/Z 双环 PID */
     PID wCmd = computeControl(angle_pid_, angleCurrentDeg, angleTarget_);
+    wCmd.out[2] = -wCmd.out[2];
     // std::cout << "last_error: " << angle_pid_.last_error << std::endl;
     // std::cout << "angle out: " << wCmd.out[0] << ", " << wCmd.out[1] << ", " << wCmd.out[2] << std::endl;
 

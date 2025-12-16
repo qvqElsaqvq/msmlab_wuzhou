@@ -102,9 +102,9 @@ int main() {
                 if(!current_balance_status)
                 {
                     std::cout << "执行自动调平算法...\n";
-                    std::vector<int16_t> action{-5000};
+                    std::vector<int16_t> action{-3000};
                     leadscrew.moveTo(action); // 先降 Z 轴质量块
-                    std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 -5000" << std::endl;
+                    std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 -3000" << std::endl;
                     current_balance_status = true;
                 }
 
