@@ -47,16 +47,10 @@ private:
     double torque_y;
     double torque_z;
 
-    double start_toq_; // 动量轮启动电流值
-
     bool if_finish_balancing_;
 
     PID angle_pid_; // 角度环，外环
     PID v_pid_; // 速度环，内环
-    /* 动量轮PID */
-    PID wheel_pid_x_; // 03
-    PID wheel_pid_y_; // 02
-    PID wheel_pid_z_; // 01
 
     /// deg ↔ rad
     static double deg2rad(double d) { return d * M_PI / 180.0; }

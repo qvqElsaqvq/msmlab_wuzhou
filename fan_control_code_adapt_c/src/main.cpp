@@ -49,6 +49,11 @@ int main() {
 
     bool if_finish_balancing = false;
 
+    /* 动捕系统 */
+    char ip[] = "192.168.43.134";
+    char nokov_ip[] = "192.168.0.60";
+    // Controlv(ip, nokov_ip);
+
     /* MQTT通信部分 */
     CallBack cb;
     mqtt::async_client client(cb.SERVER_ADDRESS, cb.CLIENT_ID);
