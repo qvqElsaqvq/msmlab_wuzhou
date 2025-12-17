@@ -33,6 +33,7 @@ private:
     GyroScope& gyro_;
     Fan& fan_;
     Wheel& wheel_;
+    msmserial::MsMSerial& ser_;
 
     /* PID 状态 */
     Vec3 intRate_ = Vec3::Zero();
@@ -49,6 +50,8 @@ private:
 
     bool if_finish_balancing_;
 
+    int cnt_;
+
     PID angle_pid_; // 角度环，外环
     PID v_pid_; // 速度环，内环
 
@@ -57,7 +60,7 @@ private:
     static double rad2deg(double r) { return r * 180.0 / M_PI; }
 
 public:
-    explicit AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& wheel);
+    explicit AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& wheel, msmserial::MsMSerial& msm_serial);
 
     /// 传入目标欧拉角（ZYX，单位 度）
     void setAttitudeInBalancing(const Vec3& eulerAngleDeg);

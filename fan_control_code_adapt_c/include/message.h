@@ -87,6 +87,14 @@ message_data LeadScrewAlarm{ // 0x09
     uint8_t alarm_z; // z轴丝杆撞边报警
 };
 
+message_data WheelInit{
+    uint8_t device_id; // 设备编号 内容：5A
+    int16_t target_roll;
+    int16_t target_pitch;
+    int16_t target_yaw;
+    uint8_t flag_balance;
+};
+
 /* 平面气浮台和上位机MQTT通信部分 */
 message_data NUC_Head{
     uint16_t head;

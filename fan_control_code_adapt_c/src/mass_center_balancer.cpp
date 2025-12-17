@@ -88,7 +88,7 @@ void MassCenterBalancer::balance_both_axes_fan() {
     int min_step_min = 2, max_step_min = 300; // step/Nm（示例系数，后续可在现场用相同口径微调）
 
     // 分段：1.5-3.0, 3.0-10.0+
-    double torque_done = 1.5; // 稳态输出阈值（Nm），小于则认定该轴已足够好
+    double torque_done = 1.0; // 稳态输出阈值（Nm），小于则认定该轴已足够好
     double torque_xy_threshold = 7.0;
 
     tol_deg_ = 0.1;

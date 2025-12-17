@@ -22,7 +22,7 @@ GyroScope gyro(msm_serial);
 LeadScrewController leadscrew(msm_serial);
 Wheel wheel(msm_serial);
 Fan fan(msm_serial);
-AttitudePDController controller(gyro, fan, wheel);
+AttitudePDController controller(gyro, fan, wheel, msm_serial);
 MassCenterBalancer balancer(gyro, fan, leadscrew, wheel, controller);
 
 /* ---------------- 线程任务 ---------------- */
@@ -97,7 +97,7 @@ int main() {
         target.yaw = 0;
         while (true) {
             // 接收数据更新并执行流程
-            if(1) // cb.getIfNeedBalancing()
+            if(0) // cb.getIfNeedBalancing()
             {
                 if(!current_balance_status)
                 {
@@ -118,7 +118,10 @@ int main() {
                     set_balancing = false;
                     balancer.reset_balance();
                 }
-            } else if (0) { // cb.getIfReceiveAttitudeControl()
+            } else if (1) { // cb.getIfReceiveAttitudeControl()
+                if_finish_balancing = balancer.getIfFinishBalancing();
+                if_finish_balancing = true;
+                controller.setIfFinishBalancing(if_finish_balancing);
                 AttitudeData angle;
                 // AttitudeData angle = cb.getAttitudeData();
                 angle.pitch = 0.0;
@@ -137,6 +140,7 @@ int main() {
             AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};
 
             flag_balancing = balancer.getIfFinishBalancing();
+            flag_balancing = true;
             set_balancing = balancer.getIfInBalancing();
 
             // send_flag++;

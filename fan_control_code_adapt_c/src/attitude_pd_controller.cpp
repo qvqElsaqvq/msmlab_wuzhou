@@ -7,10 +7,11 @@
 using Vec3 = Eigen::Vector3d;
 using Quat = Eigen::Quaterniond;
 
-AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& wheel):
+AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& wheel, msmserial::MsMSerial& msm_serial):
     gyro_(gyro),
     fan_(fan),
-    wheel_(wheel)
+    wheel_(wheel),
+    ser_(msm_serial)
 {
     std::cout << "[AttitudePDController] init" << std::endl;
 
@@ -23,6 +24,8 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
     torque_z = 0.0;
 
     if_finish_balancing_ = false;
+
+    cnt_ = 0;
 
     /* PID输出值初始化 */
     angle_pid_.Dout = Vec3(0.0, 0, 0);
@@ -47,8 +50,8 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
     angle_pid_.Ki = Vec3(0, 0, 0);
     angle_pid_.Kd = Vec3(30, 45, 45);
 
-    v_pid_.Kp = Vec3(180, 270, 200);
-    v_pid_.Ki = Vec3(0.2, 1.0, 0.5);
+    v_pid_.Kp = Vec3(180, 240, 200);
+    v_pid_.Ki = Vec3(0.2, 0.8, 0.5);
     v_pid_.Kd = Vec3(0, 0, 0);
 }
 
@@ -112,6 +115,22 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
 
     // 下发力矩
     fan_.sendTorque(torque_x, torque_y, torque_z);
+
+    if (if_finish_balancing_) {
+        cnt_++;
+        if (cnt_ >= 50) {
+            cnt_ = 0;
+            WheelInit _wheelinit{
+            .device_id = 0x5A,
+            .target_roll = (int16_t)angleTarget_.x(),
+            .target_pitch = (int16_t)angleTarget_.y(),
+            .target_yaw = (int16_t)angleTarget_.z(),
+            .flag_balance = (uint8_t)if_finish_balancing_,
+        };
+        ser_.write(0x10, _wheelinit);
+        std::cout << "wheelinit: " << (int)_wheelinit.flag_balance << std::endl;
+        }
+    }
 }
 
 Vec3 AttitudePDController::getTorque()
