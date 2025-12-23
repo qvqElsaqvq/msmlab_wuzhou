@@ -8,6 +8,8 @@ Wheel::Wheel(msmserial::MsMSerial& serial): ser_(serial)
 {
     std::cout << "[Wheel] init" << std::endl;
 
+    if_power_off_ = false;
+
     ser_.registerCallback(0x06, [this](const WheelData& msg)
     {
         setStauts(msg.device_id, msg.direction, msg.speed);
@@ -34,11 +36,19 @@ Wheel::Status Wheel::getStatus()
 
 void Wheel::sendFrame(uint8_t wheel_id, uint8_t dir, uint8_t current)
 {
-    WheelControl wheel_control{
-        .device_id = wheel_id,
-        .direction = dir,
-        .current = current,
-    };
-    ser_.write(0x02, wheel_control);
-    std::cout << "[Wheel] send id=" << wheel_id << ", direction=" << dir << ", current=" << current << std::endl;
+    if (!if_power_off_)
+    {
+        WheelControl wheel_control{
+            .device_id = wheel_id,
+            .direction = dir,
+            .current = current,
+        };
+        ser_.write(0x02, wheel_control);
+        std::cout << "[Wheel] send id=" << wheel_id << ", direction=" << dir << ", current=" << current << std::endl;
+    }
+}
+
+void Wheel::setIfPowerOff(bool if_power_off)
+{
+    if_power_off_ = if_power_off;
 }

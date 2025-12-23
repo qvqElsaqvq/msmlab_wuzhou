@@ -56,6 +56,8 @@ public:
 
     [[nodiscard]] bool getIfReceiveAttitudeControl() const{ return if_receive_attitude_basic_; }
 
+    [[nodiscard]] bool getIfPowerOff() const{ return if_power_off_; }
+
     void setFlagBalance(bool flag);
 
     std::string SERVER_ADDRESS;
@@ -92,6 +94,8 @@ private:
     bool flag_fan_calibration_; // 当前是否进行过至少一次旋翼校准
 
     bool if_receive_attitude_basic_;
+
+    bool if_power_off_;
 
     /* 数据变量 */
     double wx_;

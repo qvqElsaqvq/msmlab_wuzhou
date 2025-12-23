@@ -161,8 +161,8 @@ message_data CmdPlaneTrajectory {
 // 上位机传平面气浮台开关机指令 attitude/power
 message_data CmdPlanePower {
     uint8_t device_id; // 3    设备号 内容：01/02/03……
-    uint8_t cmd_type; // 4    指令类型 内容：0x12
-    uint8_t cmd_data; // 5    指令内容 内容：0x00 执行中 0x01 停机
+    uint8_t cmd_type; // 4    指令类型 内容：0x13
+    uint16_t cmd_data; // 5~6    指令内容 内容：0x0000 停机
 };
 
 message_data FanTestData{

@@ -17,7 +17,6 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
     dt_ = 0.02; // 50 Hz
 
     angleTarget_ = Vec3::Zero();
-
     torque_x = 0.0;
     torque_y = 0.0;
     torque_z = 0.0;

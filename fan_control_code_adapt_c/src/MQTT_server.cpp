@@ -39,7 +39,7 @@ CallBack::CallBack()
     fan_calibration_->head.head = 0x5A47;
     fan_calibration_->tail.checksum = 0x00;
 
-    SERVER_ADDRESS = "mqtt://192.168.0.11:1883";
+    SERVER_ADDRESS = "mqtt://192.168.31.13:1883";
     CLIENT_ID = "satellite_client";
     QOS = 1;
     plane_data_topic = "attitude/data";
@@ -74,6 +74,8 @@ CallBack::CallBack()
     flag_fan_calibration_ = false;
 
     if_receive_attitude_basic_ = false;
+
+    if_power_off_ = false;
 }
 
 CallBack::~CallBack()
@@ -103,7 +105,14 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
                 << " != " << sizeof(CmdBasic) << " bytes, drop\n";
             return;
         }
+        //cmd_basic_ = (CmdBasic*)&buffer;
         std::memcpy(cmd_basic_, buffer, idx);
+        cmd_basic_->data.pos_x /= 100.0;
+        cmd_basic_->data.pos_y /= 100.0;
+        cmd_basic_->data.rot_z /= 100.0;
+        cmd_basic_->data.yaw /= 100.0;
+        cmd_basic_->data.pitch /= 100.0;
+        cmd_basic_->data.roll /= 100.0;
 
         std::cout << "----- CmdBasic arrived -----\n"
             << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_basic_->data.device_id
@@ -161,6 +170,12 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             return;
         }
         std::memcpy(cmd_power_, buffer, idx);
+        if(cmd_power_->data.cmd_data == 0)
+        {
+            if_power_off_ = true;
+            std::cout << "------------- 指令关机 -----------" << std::endl;
+        }
+
         std::cout << "----- CmdPower arrived -----\n"
             << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.device_id
             << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_type

@@ -39,6 +39,8 @@ private:
     Control wheel_control_;
     Status wheel_status_;
 
+    bool if_power_off_;
+
 public:
     explicit Wheel(msmserial::MsMSerial& serial);
 
@@ -47,6 +49,8 @@ public:
     void setStauts(uint8_t wheel_id, uint8_t dir, uint8_t speed);
 
     Status getStatus();
+
+    void setIfPowerOff( bool if_power_off );
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_WHEEL_H

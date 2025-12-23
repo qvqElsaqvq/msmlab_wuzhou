@@ -17,6 +17,8 @@ class LeadScrewController
 private:
     msmserial::MsMSerial& ser_;
 
+    bool if_power_off_;
+
 public:
     explicit LeadScrewController(msmserial::MsMSerial& serial);
 
@@ -26,6 +28,8 @@ public:
      *          长度 2 → 动 X/Y 轴，Z 补 0
      */
     void moveTo(const std::vector<int16_t>& location);
+
+    void setIfPowerOff( bool if_power_off );
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_LEADSCREW_CONTROLLER_H
