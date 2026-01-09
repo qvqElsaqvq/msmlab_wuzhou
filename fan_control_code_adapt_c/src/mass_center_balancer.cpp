@@ -486,7 +486,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                             {
                                 std::vector<int16_t> action;
                                 action.push_back(0);
-                                action.push_back(int(y_err_angle_mean_ * 1500));
+                                action.push_back(int(y_err_angle_mean_ * -1500));
                                 leadscrew_.moveTo(action);
 
                                 waiting_after_moving_ = true;

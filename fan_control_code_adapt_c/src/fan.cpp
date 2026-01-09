@@ -4,44 +4,56 @@
 
 #include "fan.h"
 
-void Fan::sendTorque(float tx, float ty, float tz) {
-    uint8_t dir = 0;
-    if (tx < 0) dir |= 1 << 2;
-    if (ty < 0) dir |= 1 << 1;
-    if (tz < 0) dir |= 1 << 0;
+void Fan::sendTorque(float tx, float ty, float tz)
+{
+    if (!if_power_off_)
+    {
+        uint8_t dir = 0;
+        if (tx < 0) dir |= 1 << 2;
+        if (ty < 0) dir |= 1 << 1;
+        if (tz < 0) dir |= 1 << 0;
 
-    auto toUint16_100 = [](float v) {
-        int iv = std::fabs(v) * 100.0;
-        return static_cast<uint16_t>(std::min(65535, std::max(0, iv)));
-    };
+        auto toUint16_100 = [](float v)
+        {
+            int iv = std::fabs(v) * 100.0;
+            return static_cast<uint16_t>(std::min(65535, std::max(0, iv)));
+        };
 
-    FanControl fan_control{
-        .device_id = 0x00,
-        .direction = dir,
-        // .torque_x = 10,
-        // .torque_y = 0,
-        // .torque_z = 0,
-        .torque_x = toUint16_100(tx),
-        .torque_y = toUint16_100(ty),
-        .torque_z = toUint16_100(tz),
-    };
-    ser_.write(0x01, fan_control);
-    // std::cout << "[Fan] Sending direction=" << std::hex << std::setfill('0') << std::setw(2) << (int)dir
-    // << ", torque_x=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_x
-    // << ", torque_y=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_y
-    // << ", torque_z=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_z << std::endl;
-    // << ", torque_x=" << std::dec << (int)fan_control.torque_x
-    // << ", torque_y=" << std::dec << (int)fan_control.torque_y
-    // << ", torque_z=" << std::dec << (int)fan_control.torque_z << std::endl;
+        FanControl fan_control{
+            .device_id = 0x00,
+            .direction = dir,
+            // .torque_x = 10,
+            // .torque_y = 0,
+            // .torque_z = 0,
+            .torque_x = toUint16_100(tx),
+            .torque_y = toUint16_100(ty),
+            .torque_z = toUint16_100(tz),
+        };
+        ser_.write(0x01, fan_control);
+        // std::cout << "[Fan] Sending direction=" << std::hex << std::setfill('0') << std::setw(2) << (int)dir
+        // << ", torque_x=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_x
+        // << ", torque_y=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_y
+        // << ", torque_z=" << std::hex << std::setfill('0') << std::setw(2) << (int)fan_control.torque_z << std::endl;
+        // << ", torque_x=" << std::dec << (int)fan_control.torque_x
+        // << ", torque_y=" << std::dec << (int)fan_control.torque_y
+        // << ", torque_z=" << std::dec << (int)fan_control.torque_z << std::endl;
+    }
 }
 
 Fan::Fan(msmserial::MsMSerial& serial): ser_(serial)
 {
     std::cout << "Fan::Fan init" << std::endl;
 
+    if_power_off_ = false;
+
     ser_.registerCallback(0x08, [this](const FanCalibrationData& msg)
     {
         // std::cout << "[Fan receive] device_id=" << (int)msg.device_id << ", fan_flag=" << (int)msg.fan_flag <<
         //     ", fan_set=" << (int)msg.fan_set << std::endl;
     });
+}
+
+void Fan::setIfPowerOff(bool if_power_off)
+{
+    if_power_off_ = if_power_off;
 }

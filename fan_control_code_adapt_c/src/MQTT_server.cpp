@@ -39,7 +39,7 @@ CallBack::CallBack()
     fan_calibration_->head.head = 0x5A47;
     fan_calibration_->tail.checksum = 0x00;
 
-    SERVER_ADDRESS = "mqtt://192.168.0.11:1883";
+    SERVER_ADDRESS = "mqtt://192.168.31.16:1883";
     CLIENT_ID = "satellite_client";
     QOS = 1;
     plane_data_topic = "attitude/data";
@@ -74,6 +74,8 @@ CallBack::CallBack()
     flag_fan_calibration_ = false;
 
     if_receive_attitude_basic_ = false;
+
+    if_power_off_ = false;
 }
 
 CallBack::~CallBack()
@@ -92,6 +94,8 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
     if (msg->get_topic() == "attitude/basic")
     {
         std::cout << "On topic: " << msg->get_topic() << std::endl;
+        if_power_off_ = false;
+        std::cout << "------------- 指令开机 -----------" << if_power_off_ << std::endl;
         const std::string& pl = msg->get_payload();
         uint8_t buffer[200] = {};
         int idx = 0;
@@ -104,6 +108,12 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             return;
         }
         std::memcpy(cmd_basic_, buffer, idx);
+        cmd_basic_->data.pos_x /= 100.0;
+        cmd_basic_->data.pos_y /= 100.0;
+        cmd_basic_->data.rot_z /= 100.0;
+        cmd_basic_->data.yaw /= 100.0;
+        cmd_basic_->data.pitch /= 100.0;
+        cmd_basic_->data.roll /= 100.0;
 
         std::cout << "----- CmdBasic arrived -----\n"
             << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_basic_->data.device_id
@@ -119,6 +129,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         attitude_data_.pitch = cmd_basic_->data.pitch;
         attitude_data_.yaw = cmd_basic_->data.yaw;
         if_receive_attitude_basic_ = true;
+        if_power_off_ = false;
     }
     else if (msg->get_topic() == "attitude/trajectory")
     {
@@ -127,7 +138,8 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         uint8_t buffer[200] = {};
         int idx = 0;
         convert_msg(pl, buffer, idx);
-
+        if_power_off_ = false;
+        std::cout << "------------- 指令开机 -----------" << if_power_off_ << std::endl;
         if (idx != sizeof(CmdTrajectory))
         {
             std::cerr << "[WARN] payload size " << idx
@@ -161,10 +173,15 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             return;
         }
         std::memcpy(cmd_power_, buffer, idx);
+        if(cmd_power_->data.cmd_data == 0)
+        {
+            if_power_off_ = true;
+            std::cout << "------------- 指令关机 -----------" << std::endl;
+        }
         std::cout << "----- CmdPower arrived -----\n"
             << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.device_id
             << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_type
-            << " cmd_data: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_data << "\n";
+            << " cmd_data: " << std::hex << std::setfill('0') << std::setw(4) << (int)cmd_power_->data.cmd_data << "\n";
     }
     else if (msg->get_topic() == "attitude/fan")
     {
@@ -189,6 +206,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             << " torque_x: " << (int)fan_test_->data.torque_x / 100
             << " torque_y: " << (int)fan_test_->data.torque_y / 100
             << " torque_z: " << (int)fan_test_->data.torque_z / 100 << "\n";
+        if_power_off_ = false;
     }
     else if (msg->get_topic() == "attitude/wheel")
     {
@@ -214,6 +232,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             << " wheel_current: " << (int)wheel_test_->data.wheel_current / 100
             << " wheel_rpm: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.wheel_rpm
             << "\n";
+        if_power_off_ = false;
     }
     else if (msg->get_topic() == "attitude/balance")
     {
@@ -222,7 +241,8 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         uint8_t buffer[200] = {};
         int idx = 0;
         convert_msg(pl, buffer, idx);
-
+        if_power_off_ = false;
+        std::cout << "------------- 指令开机 -----------" << if_power_off_ << std::endl;
         if (idx != sizeof(Balance))
         {
             std::cerr << "[WARN] payload size " << idx
@@ -253,6 +273,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             else
                 if_need_balancing_ = false;
         }
+        if_power_off_ = false;
     }
     else if (msg->get_topic() == "attitude/calibration")
     {

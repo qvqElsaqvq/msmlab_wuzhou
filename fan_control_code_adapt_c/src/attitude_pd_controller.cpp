@@ -48,7 +48,7 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
     /* PID参数 */
     angle_pid_.Kp = Vec3(0.8, 0.8, 0.8);
     angle_pid_.Ki = Vec3(0, 0, 0);
-    angle_pid_.Kd = Vec3(30, 45, 45);
+    angle_pid_.Kd = Vec3(30, 45, 30);
 
     v_pid_.Kp = Vec3(180, 240, 200);
     v_pid_.Ki = Vec3(0.2, 0.8, 0.5);
