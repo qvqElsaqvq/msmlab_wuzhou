@@ -205,7 +205,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
         double roll = att.x;
         double pitch = att.y;
         double yaw = att.z;
-        std::cout << "rpy: " << roll << ", " << pitch << ", " << yaw << std::endl;
+        // std::cout << "rpy: " << roll << ", " << pitch << ", " << yaw << std::endl;
 
         z_change_attitude_sleep_cnt++;
         if (z_change_attitude_sleep_cnt >= z_change_attitude_sleep_time / settle_wait_) {

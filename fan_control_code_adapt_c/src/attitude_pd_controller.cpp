@@ -42,16 +42,16 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
     /* PID上限阈值 */
     angle_pid_.max_i_out = Vec3(0, 0, 0);
     angle_pid_.max_out = Vec3(1, 1, 3);
-    v_pid_.max_i_out = Vec3(50, 30, 100);
+    v_pid_.max_i_out = Vec3(50, 50, 50);
     v_pid_.max_out = Vec3(600, 600, 600);
 
     /* PID参数 */
     angle_pid_.Kp = Vec3(0.8, 0.8, 0.8);
     angle_pid_.Ki = Vec3(0, 0, 0);
-    angle_pid_.Kd = Vec3(30, 45, 30);
+    angle_pid_.Kd = Vec3(120, 120, 45);
 
-    v_pid_.Kp = Vec3(180, 240, 200);
-    v_pid_.Ki = Vec3(0.2, 0.8, 0.5);
+    v_pid_.Kp = Vec3(350, 350, 200);
+    v_pid_.Ki = Vec3(1.0, 1.0, 0.5);
     v_pid_.Kd = Vec3(0, 0, 0);
 }
 

@@ -102,6 +102,7 @@ int main() {
             fan.setIfPowerOff(if_poweroff);
             wheel.setIfPowerOff(if_poweroff);
             leadscrew.setIfPowerOff(if_poweroff);
+
             // 接收数据更新并执行流程
             if(cb.getIfNeedBalancing()) // cb.getIfNeedBalancing()
             {
@@ -143,8 +144,10 @@ int main() {
             // 发送数据更新并上发
             auto gyro_att = gyro.getAttitude();
             Attitude att{gyro_att.x, gyro_att.y, gyro_att.z};
+            // std::cout << att.pitch << std::endl;
             auto gyro_av = gyro.getAngularVelocity();
             AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};
+            // std::cout << gyro_av.x<<" " << gyro_av.y<<" "<< gyro_av.z << std::endl;
 
             flag_balancing = balancer.getIfFinishBalancing();
             // flag_balancing = true;
