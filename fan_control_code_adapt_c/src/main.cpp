@@ -53,7 +53,7 @@ int main() {
     bool if_poweroff = false;
 
     // 1) 先启动 Nokov（你可以写死 IP，也可以从配置文件读）
-    const char* mocap_ip = "192.168.31.16";
+    const char* mocap_ip = "192.168.31.3";
     if (Nokov_Start(mocap_ip) != 0) {
         std::cerr << "[NOKOV] start failed\n";
         return 1;
