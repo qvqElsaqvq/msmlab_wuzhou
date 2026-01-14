@@ -13,6 +13,8 @@
 #include "serial.h"
 #include "gyro_scope.h"
 #include "MQTT_server.h"
+#include "nokov_bridge.h"
+
 
 using Vec3 = Eigen::Vector3d;
 
@@ -49,6 +51,13 @@ int main() {
 
     bool if_finish_balancing = false;
     bool if_poweroff = false;
+
+    // 1) 先启动 Nokov（你可以写死 IP，也可以从配置文件读）
+    const char* mocap_ip = "192.168.31.16";
+    if (Nokov_Start(mocap_ip) != 0) {
+        std::cerr << "[NOKOV] start failed\n";
+        return 1;
+    }
 
     /* MQTT通信部分 */
     CallBack cb;
@@ -93,6 +102,14 @@ int main() {
         target.pitch = 0;
         target.yaw = 0;
         while (true) {
+
+            RigidPose pose;
+            if (Nokov_GetPoseByName("RB1", pose)) {
+                // pose.x/y/z, pose.qx/qy/qz/qw
+                // 这里你想干嘛都行：喂给控制器 / 打印 / 上传 MQTT
+                // 注意单位：你当前打印逻辑是 mm
+            }
+
             if_poweroff = cb.getIfPowerOff();
             if(if_poweroff) // 关机
             {
@@ -211,13 +228,17 @@ int main() {
             // 控制循环频率
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
-    } catch (const mqtt::exception &e) {
+    }
+    catch (const mqtt::exception &e) {
         std::cerr << "Mqtt Error: " << e.what() << std::endl;
         client.stop_consuming();
         client.disconnect()->wait();
         std::cerr << "[MQTT] 断开连接" << std::endl;
         return 1;
     }
+    Nokov_Stop();
+    std::cout << "[NOKOV] stopped\n";
+
     client.stop_consuming();
     client.disconnect()->wait();
     std::cout << "[MQTT] 断开连接" << std::endl;
