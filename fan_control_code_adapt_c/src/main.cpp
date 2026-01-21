@@ -24,7 +24,7 @@ GyroScope gyro(msm_serial);
 LeadScrewController leadscrew(msm_serial);
 Wheel wheel(msm_serial);
 Fan fan(msm_serial);
-AttitudePDController controller(gyro, fan, wheel);
+AttitudePDController controller(gyro, fan, wheel,msm_serial);
 MassCenterBalancer balancer(gyro, fan, leadscrew, wheel, controller);
 
 /* ---------------- 线程任务 ---------------- */
@@ -104,8 +104,20 @@ int main() {
         while (true) {
 
             RigidPose pose;
-            if (Nokov_GetPoseByName("RB1", pose)) {
+            if (Nokov_GetPoseByName("TZTracker", pose)) {
                 // pose.x/y/z, pose.qx/qy/qz/qw
+
+                // std::cout << "[Pose] pos(mm): "
+                //           << "x=" << pose.x << " "
+                //           << "y=" << pose.y << " "
+                //           << "z=" << pose.z << std::endl;
+                //
+                // std::cout << "[Pose] quat: "
+                //           << "qx=" << pose.qx << " "
+                //           << "qy=" << pose.qy << " "
+                //           << "qz=" << pose.qz << " "
+                //           << "qw=" << pose.qw << std::endl;
+
                 // 这里你想干嘛都行：喂给控制器 / 打印 / 上传 MQTT
                 // 注意单位：你当前打印逻辑是 mm
             }
@@ -124,9 +136,9 @@ int main() {
 				if(!current_balance_status)
                 {
                     std::cout << "执行自动调平算法...\n";
-                    std::vector<int16_t> action{-5000};
+                    std::vector<int16_t> action{-3000};
                     leadscrew.moveTo(action); // 先降 Z 轴质量块
-                    std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 -5000" << std::endl;
+                    std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 -3000" << std::endl;
                     current_balance_status = true;
                 }
 
@@ -158,18 +170,19 @@ int main() {
             Attitude att{gyro_att.x, gyro_att.y, gyro_att.z};
             auto gyro_av = gyro.getAngularVelocity();
             AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};
+            auto wheel_data = wheel.getStatus();
 
             flag_balancing = balancer.getIfFinishBalancing();
             set_balancing = balancer.getIfInBalancing();
 
             send_flag++;
-            if (send_flag >= 50) {
+            if (send_flag >= 2) {
                 // 数据上发
                 for (int i = 0; i < 1; i++) {
                     Plane data{};
                     data.head.head = 0x4D47;
                     data.tail.checksum = 0x00;
-                    data.data.device_id = 0x02;
+                    data.data.device_id = 0x05;
                     data.data.platform_type = 0xF4;
                     data.data.cmd_count = 0x01;
                     data.data.file_count = 0x01;
@@ -179,16 +192,16 @@ int main() {
                         data.data.platform_status = 0x01;
 
                     data.data.gyro_fault = 0x00;
-                    data.data.wx = (int16_t)av.wx * 100.0f;
-                    data.data.wy = (int16_t)av.wy * 100.0f;
-                    data.data.wz = (int16_t)av.wz * 100.0f;
-                    data.data.roll = (int16_t)att.roll * 100.0f;
-                    data.data.pitch = (int16_t)att.pitch * 100.0f;
-                    data.data.yaw = (int16_t)att.yaw * 100.0f;
+                    data.data.wx = (int16_t)(av.wx * 100.0f);
+                    data.data.wy = (int16_t)(av.wy * 100.0f);
+                    data.data.wz = (int16_t)(av.wz * 100.0f);
+                    data.data.roll = (int16_t)(att.roll * 100.0f);
+                    data.data.pitch = (int16_t)(att.pitch * 100.0f);
+                    data.data.yaw = (int16_t)(att.yaw * 100.0f);
 
-                    data.data.wheel_dir = 0x55;
+                    data.data.wheel_dir = wheel_data.dir;
                     data.data.wheel_current = 0;
-                    data.data.wheel_rpm = 0;
+                    data.data.wheel_rpm = wheel_data.speed;
                     data.data.wheel_fault = 0x00;
                     data.data.payload_mass = 0;
                     data.data.pwr_v1 = 0;
@@ -207,9 +220,9 @@ int main() {
                     data.data.thrust_z = 0;
 
                     Vec3 current_torque = controller.getTorque();
-                    data.data.torque_roll = (int16_t)current_torque.x() * 100.0f;
-                    data.data.torque_pitch = (int16_t)current_torque.y() * 100.0f;
-                    data.data.torque_yaw = (int16_t)current_torque.z() * 100.0f;
+                    data.data.torque_roll = (int16_t)(current_torque.x() * 100.0f);
+                    data.data.torque_pitch = (int16_t)(current_torque.y() * 100.0f);
+                    data.data.torque_yaw = (int16_t)(current_torque.z() * 100.0f);
 
                     data.data.balance_flag = flag_balancing;
                     data.data.balance_set = set_balancing;

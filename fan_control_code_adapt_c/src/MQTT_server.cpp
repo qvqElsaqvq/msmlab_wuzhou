@@ -39,7 +39,7 @@ CallBack::CallBack()
     fan_calibration_->head.head = 0x5A47;
     fan_calibration_->tail.checksum = 0x00;
 
-    SERVER_ADDRESS = "mqtt://192.168.31.13:1883";
+    SERVER_ADDRESS = "mqtt://192.168.31.4:1883";
     CLIENT_ID = "satellite_client";
     QOS = 1;
     plane_data_topic = "attitude/data";

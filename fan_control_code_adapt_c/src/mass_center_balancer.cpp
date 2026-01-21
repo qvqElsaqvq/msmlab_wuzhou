@@ -88,7 +88,7 @@ void MassCenterBalancer::balance_both_axes_fan() {
     int min_step_min = 2, max_step_min = 300; // step/Nm（示例系数，后续可在现场用相同口径微调）
 
     // 分段：1.5-3.0, 3.0-10.0+
-    double torque_done = 1.0; // 稳态输出阈值（Nm），小于则认定该轴已足够好
+    double torque_done = 1.5; // 稳态输出阈值（Nm），小于则认定该轴已足够好
     double torque_xy_threshold = 7.0;
 
     tol_deg_ = 0.1;
@@ -188,14 +188,14 @@ void MassCenterBalancer::balance_z_axes_fan() {
     int max_step_s = 1000;
 
     double torque_z_threshold = 7.0;
-    double torque_done = 5.0; // 允许的回升力矩上限（Nm）
+    double torque_done = 2.0; // 允许的回升力矩上限（Nm）
     double pitch_metric = 0.0;
     double prev_dir_z = 0; // 方向
     int raw_sign = 0;
 
     tol_deg_ = 0.1;
-    dwell_time_ = 10.0; // 稳态保持计时时间
-    sample_time_ = 10.0; // 采样时间
+    dwell_time_ = 8.0; // 稳态保持计时时间
+    sample_time_ = 6.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
     if (if_in_z_changing_attitude) {
@@ -246,9 +246,10 @@ void MassCenterBalancer::balance_z_axes_fan() {
             if (!if_15_ok_)
                 z_target_angle_ = 15.0;
             else if (!if_20_ok_)
-                z_target_angle_ = 20.0;
+                z_target_angle_ = 20.0;   // 如果你本来就“废弃 20°”，也可以留着
             else if (!pitch_metric_finish_)
-                z_target_angle_ = 30.0;
+                z_target_angle_ = 25.0;
+
 
             controller_.setAttitudeInBalancing({0.0, z_target_angle_, 0.0});
 
@@ -271,9 +272,9 @@ void MassCenterBalancer::balance_z_axes_fan() {
                     if_15_ok_ = true;
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 15° 调平完成" << std::endl;
-                    z_target_angle_ = 30.0;
+                    z_target_angle_ = 25.0;
 
-                    std::cout << "+++++++++++++++++角度调整：30°, 等待中+++++++++++++++++" << std::endl;
+                    std::cout << "+++++++++++++++++角度调整：25°, 等待中+++++++++++++++++" << std::endl;
                     if_in_z_changing_attitude = true;
                     z_change_attitude_sleep_cnt = 0;
                     z_change_attitude_sleep_time = 25;
@@ -285,9 +286,9 @@ void MassCenterBalancer::balance_z_axes_fan() {
                     if_20_ok_ = true;
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 20° 调平完成" << std::endl;
-                    z_target_angle_ = 30.0;
+                    z_target_angle_ = 25.0;
 
-                    std::cout << "+++++++++++++++++角度调整 30° 等待中+++++++++++++++++" << std::endl;
+                    std::cout << "+++++++++++++++++角度调整 25° 等待中+++++++++++++++++" << std::endl;
                     if_in_z_changing_attitude = true;
                     z_change_attitude_sleep_cnt = 0;
                     z_change_attitude_sleep_time = 20;
