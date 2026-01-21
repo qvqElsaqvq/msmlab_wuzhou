@@ -123,12 +123,9 @@ int main() {
             }
 
             if_poweroff = cb.getIfPowerOff();
-            if(if_poweroff) // 关机
-            {
-                fan.setIfPowerOff(if_poweroff);
-                wheel.setIfPowerOff(if_poweroff);
-                leadscrew.setIfPowerOff(if_poweroff);
-            }
+            fan.setIfPowerOff(if_poweroff);
+            wheel.setIfPowerOff(if_poweroff);
+            leadscrew.setIfPowerOff(if_poweroff);
             // 接收数据更新并执行流程
             if(cb.getIfNeedBalancing()) // cb.getIfNeedBalancing()
             {

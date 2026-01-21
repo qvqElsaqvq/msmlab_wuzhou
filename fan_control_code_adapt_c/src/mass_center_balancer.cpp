@@ -266,7 +266,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
         if (if_finish_testing_ty_ && !pitch_metric_finish_) // 回升力矩获取完毕
         {
             // 3) 终止判据
-            if (abs(pitch_metric) <= torque_done) {
+            if (pitch_metric <= torque_done && pitch_metric >= 0) {
                 if_return_zero_ = true;
                 if (!if_15_ok_) {
                     if_15_ok_ = true;

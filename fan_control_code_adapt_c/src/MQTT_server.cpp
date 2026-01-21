@@ -127,6 +127,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         attitude_data_.roll = cmd_basic_->data.roll;
         attitude_data_.pitch = cmd_basic_->data.pitch;
         attitude_data_.yaw = cmd_basic_->data.yaw;
+        flag_balance_ = true;
         if_receive_attitude_basic_ = true;
     }
     else if (msg->get_topic() == "attitude/trajectory")
@@ -253,7 +254,9 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             << " balance_set: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.balance_set
             << " balance_reset: " << std::hex << std::setfill('0') << std::setw(2) << (int)balance_->data.balance_reset
             << "\n";
-
+        if (balance_->data.balance_reset) {
+            flag_balance_ = false;
+        }
         if(!flag_balance_) // 没完成过自动调平
         {
             if(balance_->data.balance_set)
