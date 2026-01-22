@@ -15,7 +15,7 @@ MassCenterBalancer::MassCenterBalancer(GyroScope &gyro, Fan &fan, LeadScrewContr
     dwell_time_ = 10.0;
     sample_time_ = 10.0;
     settle_wait_ = 0.02;
-    waiting_time_ = 10.0;
+    waiting_time_ = 8.0;
 
     t_enter_ = -1;
     sample_t_enter_ = -1;
@@ -84,12 +84,12 @@ void MassCenterBalancer::balance_both_axes_fan() {
     int kx_max = 150, ky_max = 150; // step/Nm（示例系数，后续可在现场用相同口径微调）
     int min_step_max = 20, max_step_max = 1000;
     // 回升力矩较小时的扭矩→步长比例
-    int kx_min = 50, ky_min = 50;
+    int kx_min = 50, ky_min = 30;
     int min_step_min = 2, max_step_min = 300; // step/Nm（示例系数，后续可在现场用相同口径微调）
 
     // 分段：1.5-3.0, 3.0-10.0+
-    double torque_done = 1.0; // 稳态输出阈值（Nm），小于则认定该轴已足够好
-    double torque_xy_threshold = 3.0;
+    double torque_done = 1.5; // 稳态输出阈值（Nm），小于则认定该轴已足够好
+    double torque_xy_threshold = 7.0;
 
     tol_deg_ = 0.1;
     dwell_time_ = 10.0; // 稳态保持计时时间
@@ -179,23 +179,23 @@ void MassCenterBalancer::balance_z_axes_fan() {
     int min_step;
     int max_step;
     // 回升力矩较大时的扭矩→步长比例
-    int kz_l = 1200; // step/N·m
+    int kz_l = 500; // step/N·m
     int min_step_l = 100;
-    int max_step_l = 4000;
+    int max_step_l = 2500;
     // 回升力矩较小时的扭矩→步长比例
-    int kz_s = 300; // step/N·m（保守）
+    int kz_s = 100; // step/N·m（保守）
     int min_step_s = 5;
-    int max_step_s = 1500;
+    int max_step_s = 1000;
 
     double torque_z_threshold = 7.0;
-    double torque_done = 5.0; // 允许的回升力矩上限（Nm）
+    double torque_done = 2.0; // 允许的回升力矩上限（Nm）
     double pitch_metric = 0.0;
     double prev_dir_z = 0; // 方向
     int raw_sign = 0;
 
     tol_deg_ = 0.1;
-    dwell_time_ = 10.0; // 稳态保持计时时间
-    sample_time_ = 12.0; // 采样时间
+    dwell_time_ = 8.0; // 稳态保持计时时间
+    sample_time_ = 6.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
     if (if_in_z_changing_attitude) {
@@ -205,7 +205,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
         double roll = att.x;
         double pitch = att.y;
         double yaw = att.z;
-        std::cout << "rpy: " << roll << ", " << pitch << ", " << yaw << std::endl;
+        // std::cout << "rpy: " << roll << ", " << pitch << ", " << yaw << std::endl;
 
         z_change_attitude_sleep_cnt++;
         if (z_change_attitude_sleep_cnt >= z_change_attitude_sleep_time / settle_wait_) {
@@ -236,7 +236,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
                 std::cout << "+++++++++++++++++角度调整 15°, 等待中+++++++++++++++++" << std::endl;
                 if_in_z_changing_attitude = true;
                 z_change_attitude_sleep_cnt = 0;
-                z_change_attitude_sleep_time = 50;
+                z_change_attitude_sleep_time = 45;
             }
         }
         if (if_return_zero_ && !if_finish_testing_ty_) // 已经回到 0,0,0
@@ -246,9 +246,10 @@ void MassCenterBalancer::balance_z_axes_fan() {
             if (!if_15_ok_)
                 z_target_angle_ = 15.0;
             else if (!if_20_ok_)
-                z_target_angle_ = 20.0;
+                z_target_angle_ = 20.0;   // 如果你本来就“废弃 20°”，也可以留着
             else if (!pitch_metric_finish_)
-                z_target_angle_ = 30.0;
+                z_target_angle_ = 25.0;
+
 
             controller_.setAttitudeInBalancing({0.0, z_target_angle_, 0.0});
 
@@ -265,18 +266,18 @@ void MassCenterBalancer::balance_z_axes_fan() {
         if (if_finish_testing_ty_ && !pitch_metric_finish_) // 回升力矩获取完毕
         {
             // 3) 终止判据
-            if (abs(pitch_metric) <= torque_done) {
+            if (pitch_metric <= torque_done && pitch_metric >= 0) {
                 if_return_zero_ = true;
                 if (!if_15_ok_) {
                     if_15_ok_ = true;
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 15° 调平完成" << std::endl;
-                    z_target_angle_ = 30.0;
+                    z_target_angle_ = 25.0;
 
-                    std::cout << "+++++++++++++++++角度调整：30°, 等待中+++++++++++++++++" << std::endl;
+                    std::cout << "+++++++++++++++++角度调整：25°, 等待中+++++++++++++++++" << std::endl;
                     if_in_z_changing_attitude = true;
                     z_change_attitude_sleep_cnt = 0;
-                    z_change_attitude_sleep_time = 40;
+                    z_change_attitude_sleep_time = 25;
 
                     if_20_ok_ = true;
 
@@ -285,9 +286,9 @@ void MassCenterBalancer::balance_z_axes_fan() {
                     if_20_ok_ = true;
                     if_finish_testing_ty_ = false;
                     std::cout << "[FAN-Z] 在 20° 调平完成" << std::endl;
-                    z_target_angle_ = 30.0;
+                    z_target_angle_ = 25.0;
 
-                    std::cout << "+++++++++++++++++角度调整 30° 等待中+++++++++++++++++" << std::endl;
+                    std::cout << "+++++++++++++++++角度调整 25° 等待中+++++++++++++++++" << std::endl;
                     if_in_z_changing_attitude = true;
                     z_change_attitude_sleep_cnt = 0;
                     z_change_attitude_sleep_time = 20;
@@ -305,9 +306,9 @@ void MassCenterBalancer::balance_z_axes_fan() {
             }
 
             // 4) 方向与步长（保守，不跨边界：方向翻转自动减半）
-            if (pitch_metric < 0)
+            if (pitch_metric > 0)
                 raw_sign = +1;
-            else if (pitch_metric > 0)
+            else if (pitch_metric < 0)
                 raw_sign = -1;
             else
                 raw_sign = 0;
@@ -421,7 +422,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                             if (fabs(z_err_angle_mean_) >= 0.3) // 移动质量块
                             {
                                 std::vector<int16_t> action;
-                                int step = int(z_err_angle_mean_ * 8000);
+                                int step = int(z_err_angle_mean_ * 4000);
                                 if (step > 0) // 限幅
                                     step = std::min(30000, step);
                                 else if (step < 0)
@@ -486,7 +487,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                             {
                                 std::vector<int16_t> action;
                                 action.push_back(0);
-                                action.push_back(int(y_err_angle_mean_ * 1500));
+                                action.push_back(int(y_err_angle_mean_ * -1500));
                                 leadscrew_.moveTo(action);
 
                                 waiting_after_moving_ = true;
@@ -531,11 +532,6 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
 }
 
 void MassCenterBalancer::balance_axes() {
-    if (if_power_off_) {
-        reset_balance();
-        return;
-    }
-
     if (!(flag_x_ && flag_y_))
         balance_both_axes_fan();
     else if (flag_x_ && flag_y_ && !if_finish_balancing_)
@@ -551,9 +547,4 @@ void MassCenterBalancer::reset_balance() {
     is_balancing_z_ = false;
     if_15_ok_ = false;
     if_20_ok_ = false;
-}
-
-void MassCenterBalancer::setIfPowerOff(bool if_power_off)
-{
-    if_power_off_ = if_power_off;
 }

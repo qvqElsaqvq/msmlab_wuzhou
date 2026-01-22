@@ -126,7 +126,7 @@ int main() {
             fan.setIfPowerOff(if_poweroff);
             wheel.setIfPowerOff(if_poweroff);
             leadscrew.setIfPowerOff(if_poweroff);
-            balancer.setIfPowerOff(if_poweroff);
+            // balancer.setIfPowerOff(if_poweroff);
             // 接收数据更新并执行流程
             if(cb.getIfNeedBalancing()) // cb.getIfNeedBalancing()
             {
