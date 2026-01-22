@@ -126,6 +126,7 @@ int main() {
             fan.setIfPowerOff(if_poweroff);
             wheel.setIfPowerOff(if_poweroff);
             leadscrew.setIfPowerOff(if_poweroff);
+            balancer.setIfPowerOff(if_poweroff);
             // 接收数据更新并执行流程
             if(cb.getIfNeedBalancing()) // cb.getIfNeedBalancing()
             {
@@ -173,7 +174,7 @@ int main() {
             set_balancing = balancer.getIfInBalancing();
 
             send_flag++;
-            if (send_flag >= 2) {
+            if (send_flag >= 5) {
                 // 数据上发
                 for (int i = 0; i < 1; i++) {
                     Plane data{};

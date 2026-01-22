@@ -32,6 +32,8 @@ public:
     using Vec3 = Eigen::Vector3d;
     using Quat = Eigen::Quaterniond;
 
+    bool if_power_off_;
+
     explicit MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewController& lscrew_controller, Wheel& wheel,
                                 AttitudePDController& attitude_controller);
 
@@ -60,6 +62,8 @@ public:
     void balance_axes();
 
     void reset_balance();
+
+    void setIfPowerOff(bool if_power_off);
 
     [[nodiscard]] bool getIfInBalancing() const{ return if_set_balancing_; }
 

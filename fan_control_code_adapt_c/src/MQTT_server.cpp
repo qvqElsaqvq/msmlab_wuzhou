@@ -94,6 +94,10 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
     if (msg->get_topic() == "attitude/basic")
     {
         std::cout << "On topic: " << msg->get_topic() << std::endl;
+
+        if_power_off_ = false;
+        std::cout << "------------- 指令开机 -----------" << if_power_off_ << std::endl;
+
         const std::string& pl = msg->get_payload();
         uint8_t buffer[200] = {};
         int idx = 0;
@@ -129,10 +133,15 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         attitude_data_.yaw = cmd_basic_->data.yaw;
         flag_balance_ = true;
         if_receive_attitude_basic_ = true;
+        if_power_off_ = false;
     }
     else if (msg->get_topic() == "attitude/trajectory")
     {
         std::cout << "On topic: " << msg->get_topic() << std::endl;
+
+        if_power_off_ = false;
+        std::cout << "------------- 指令开机 -----------" << if_power_off_ << std::endl;
+
         const std::string& pl = msg->get_payload();
         uint8_t buffer[200] = {};
         int idx = 0;
@@ -180,7 +189,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         std::cout << "----- CmdPower arrived -----\n"
             << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.device_id
             << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_type
-            << " cmd_data: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_data << "\n";
+            << " cmd_data: " << std::hex << std::setfill('0') << std::setw(4) << (int)cmd_power_->data.cmd_data << "\n";
     }
     else if (msg->get_topic() == "attitude/fan")
     {
@@ -205,6 +214,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             << " torque_x: " << (int)fan_test_->data.torque_x / 100
             << " torque_y: " << (int)fan_test_->data.torque_y / 100
             << " torque_z: " << (int)fan_test_->data.torque_z / 100 << "\n";
+        if_power_off_ = false;
     }
     else if (msg->get_topic() == "attitude/wheel")
     {
@@ -230,6 +240,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             << " wheel_current: " << (int)wheel_test_->data.wheel_current / 100
             << " wheel_rpm: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.wheel_rpm
             << "\n";
+        if_power_off_ = false;
     }
     else if (msg->get_topic() == "attitude/balance")
     {
@@ -238,6 +249,9 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         uint8_t buffer[200] = {};
         int idx = 0;
         convert_msg(pl, buffer, idx);
+
+        if_power_off_ = false;
+        std::cout << "------------- 指令开机 -----------" << if_power_off_ << std::endl;
 
         if (idx != sizeof(Balance))
         {
@@ -271,6 +285,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             else
                 if_need_balancing_ = false;
         }
+        if_power_off_ = false;
     }
     else if (msg->get_topic() == "attitude/calibration")
     {
