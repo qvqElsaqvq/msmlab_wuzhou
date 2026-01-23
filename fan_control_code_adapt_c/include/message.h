@@ -96,6 +96,14 @@ message_data NUC_Tail{
     uint8_t checksum;
 };
 
+message_data WheelInit{
+    uint8_t device_id; // 设备编号 内容：5A
+    int16_t target_roll;
+    int16_t target_pitch;
+    int16_t target_yaw;
+    uint8_t flag_balance;
+};
+
 // 平面气浮台传上位机指令格式 attitude/data
 message_data PlaneData {
     uint8_t device_id; // 3    设备号 内容：01/02/03……

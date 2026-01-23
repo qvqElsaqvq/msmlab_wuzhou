@@ -156,14 +156,13 @@ int main() {
                 // angle.pitch = 0.0;
                 // angle.roll = 0.0;
                 // angle.yaw = 0.0;
-                flag_balancing = true;
+                controller.setIfFinishBalancing(true);
                 AttitudeData angle = cb.getAttitudeData();
                 target.roll = angle.roll;
                 target.pitch = angle.pitch;
                 target.yaw = angle.yaw;
                 do_attitude_control_task(controller, target);
             }
-            flag_balancing = true;
             // 发送数据更新并上发
             auto gyro_att = gyro.getAttitude();
             Attitude att{gyro_att.x, gyro_att.y, gyro_att.z};
@@ -171,7 +170,7 @@ int main() {
             AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};
             auto wheel_data = wheel.getStatus();
 
-            flag_balancing = balancer.getIfFinishBalancing();
+            // flag_balancing = balancer.getIfFinishBalancing();
             set_balancing = balancer.getIfInBalancing();
 
             send_flag++;
