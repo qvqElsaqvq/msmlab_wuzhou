@@ -14,6 +14,10 @@
 #include "gyro_scope.h"
 #include "MQTT_server.h"
 #include "nokov_bridge.h"
+#include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <ctime>
 
 
 using Vec3 = Eigen::Vector3d;
@@ -97,30 +101,17 @@ int main() {
         std::cout << cb.fan_calibration_topic << std::endl;
         std::cout << "Connected!" << std::endl;
 
-        Attitude target;
-        target.roll = 0;
-        target.pitch = 0;
-        target.yaw = 0;
+        Attitude target_attitude; // 用于存储目标姿态
+        std::ofstream log_csv("attitude_compare.csv");
+        log_csv << "ms,"
+                << "gyro_roll,gyro_pitch,gyro_yaw,"
+                << "mocap_roll,mocap_pitch,mocap_yaw\n";
+        log_csv.flush();
         while (true) {
 
             RigidPose pose;
-            if (Nokov_GetPoseByName("TZTracker", pose)) {
-                // pose.x/y/z, pose.qx/qy/qz/qw
-
-                // std::cout << "[Pose] pos(mm): "
-                //           << "x=" << pose.x << " "
-                //           << "y=" << pose.y << " "
-                //           << "z=" << pose.z << std::endl;
-                //
-                // std::cout << "[Pose] quat: "
-                //           << "qx=" << pose.qx << " "
-                //           << "qy=" << pose.qy << " "
-                //           << "qz=" << pose.qz << " "
-                //           << "qw=" << pose.qw << std::endl;
-
-                // 这里你想干嘛都行：喂给控制器 / 打印 / 上传 MQTT
-                // 注意单位：你当前打印逻辑是 mm
-            }
+            bool received_pose = Nokov_GetPoseByName("WUZHOUSHANG", pose); // 获取动捕数据
+            gyro.updateMocapExtrinsic(pose, received_pose); // ✅ 新增：动捕存在就先做外参标定（内部自动一次性完成）
 
             if_poweroff = cb.getIfPowerOff();
             fan.setIfPowerOff(if_poweroff);
@@ -151,21 +142,117 @@ int main() {
                     balancer.reset_balance();
                 }
 
-            } else if (cb.getIfReceiveAttitudeControl()) { // cb.getIfReceiveAttitudeControl()
-                // AttitudeData angle;
-                // angle.pitch = 0.0;
-                // angle.roll = 0.0;
-                // angle.yaw = 0.0;
-                controller.setIfFinishBalancing(true);
+            } else if (cb.getIfReceiveAttitudeControl()) {
+
                 AttitudeData angle = cb.getAttitudeData();
-                target.roll = angle.roll;
-                target.pitch = angle.pitch;
-                target.yaw = angle.yaw;
-                do_attitude_control_task(controller, target);
+                target_attitude.roll = angle.roll; // 你说：这是动捕系下的姿态角c
+                target_attitude.pitch = angle.pitch;
+                target_attitude.yaw = angle.yaw;
+
+                if (received_pose) {
+                    // ===== 1) 目标：动捕绝对目标 -> 平台等价目标（pitch 反号）=====
+                    AttitudeData angle = cb.getAttitudeData();
+                    Attitude target_mocap{angle.roll, angle.pitch, angle.yaw};
+
+                    Attitude target_plat;
+                    target_plat.roll  = target_mocap.roll;
+                    target_plat.pitch = -target_mocap.pitch;   // ✅ 关键：pitch 反号
+                    target_plat.yaw   = target_mocap.yaw;
+
+                    // 目标四元数（平台等价）
+                    Eigen::Quaterniond qT =
+                        gyro_util::quatFromEulerZYX_deg(target_plat.roll,
+                                                        target_plat.pitch,
+                                                        target_plat.yaw);
+
+                    // ===== 2) 当前：动捕当前 -> 转欧拉 -> pitch 反号 -> 再转四元数 =====
+                    Eigen::Quaterniond qM_raw(pose.qw, pose.qx, pose.qy, pose.qz);
+                    qM_raw.normalize();
+
+                    // 用你统一的欧拉提取（ZYX, deg）
+                    Eigen::Vector3d rpyM = gyro_util::eulerZYX_degFromQuat(qM_raw); // [roll,pitch,yaw]
+                    rpyM.y() = -rpyM.y();   // ✅ 关键：pitch 反号
+
+                    Eigen::Quaterniond qM =
+                        gyro_util::quatFromEulerZYX_deg(rpyM.x(), rpyM.y(), rpyM.z());
+
+                    // ===== 3) 误差驱动：动捕当前(平台等价) -> 目标(平台等价) =====
+                    Eigen::Quaterniond qDelta = qM.inverse() * qT;
+                    qDelta.normalize();
+
+                    // ===== 4) 陀螺闭环目标：当前陀螺姿态 * 误差 =====
+                    Eigen::Quaterniond qG_cur = gyro.getQuaternion();
+                    qG_cur.normalize();
+
+                    Eigen::Quaterniond qG_tgt = qG_cur * qDelta;
+                    qG_tgt.normalize();
+
+                    // ===== 5) 给 PID 的欧拉目标（平台系）=====
+                    Eigen::Vector3d rpyG_tgt = gyro_util::eulerZYX_degFromQuat(qG_tgt);
+                    target_attitude.roll  = rpyG_tgt.x();
+                    target_attitude.pitch = rpyG_tgt.y();
+                    target_attitude.yaw   = rpyG_tgt.z();
+                    auto gatt = gyro.getAttitude();
+                    if (fabs(gatt.x-target_attitude.roll) <1.0f and fabs(gatt.y-target_attitude.pitch) <1.0f and fabs(gatt.z-target_attitude.yaw) <3.0f) {
+                        controller.setIfFinishBalancing(true);
+                    }
+                    std::cout << "[Target Converted M->G] roll=" << target_attitude.roll
+                              << ", pitch=" << target_attitude.pitch
+                              << ", yaw=" << target_attitude.yaw << std::endl;
+
+                }
+                else {
+                    controller.setIfFinishBalancing(true);
+                }
+
+                do_attitude_control_task(controller, target_attitude);
             }
+
+            Attitude att{0.0, 0.0, 0.0};
             // 发送数据更新并上发
-            auto gyro_att = gyro.getAttitude();
-            Attitude att{gyro_att.x, gyro_att.y, gyro_att.z};
+            if (received_pose) {
+                // 1) 动捕四元数 -> 动捕系欧拉角（ZYX，deg）
+                Eigen::Quaterniond qM(pose.qw, pose.qx, pose.qy, pose.qz);
+                qM.normalize();
+
+                Eigen::Vector3d rpyM_deg = gyro_util::eulerZYX_degFromQuat(qM); // [roll,pitch,yaw]
+                att.roll  = rpyM_deg.x();
+                att.pitch = rpyM_deg.y();
+                att.yaw   = rpyM_deg.z();
+                std::cout << "[Angle form 动捕] roll=" << att.roll
+                              << ", pitch=" << att.pitch
+                              << ", yaw=" << att.yaw << std::endl;
+                 // std::cout << "[Angle form 陀螺仪] roll=" << gyro_att.x
+                 //               << ", pitch=" << gyro_att.y
+                 //               << ", yaw=" << gyro_att.z << std::endl;
+            } else {
+                // 2) 没动捕就用陀螺仪姿态角（deg）
+                auto gyro_att = gyro.getAttitude();
+                att.roll  = gyro_att.x;
+                att.pitch = gyro_att.y;
+                att.yaw   = gyro_att.z;
+            }
+
+
+            auto gatt = gyro.getAttitude();
+            static auto t0 = std::chrono::steady_clock::now();
+            auto now = std::chrono::steady_clock::now();
+            auto ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
+
+            log_csv << ms << ","
+                    << std::fixed << std::setprecision(6)
+                    << gatt.x << "," << gatt.y << "," << gatt.z << ","
+                    << att.roll << "," << att.pitch << "," << att.yaw
+                    << "\n";
+
+            // 可选：防止掉电丢数据
+            static int flush_cnt = 0;
+            if (++flush_cnt >= 50) {
+                log_csv.flush();
+                flush_cnt = 0;
+            }
+
             auto gyro_av = gyro.getAngularVelocity();
             AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};
             auto wheel_data = wheel.getStatus();
@@ -190,9 +277,9 @@ int main() {
                         data.data.platform_status = 0x01;
 
                     data.data.gyro_fault = 0x00;
-                    data.data.wx = (int16_t)(av.wx * 100.0f);
-                    data.data.wy = (int16_t)(av.wy * 100.0f);
-                    data.data.wz = (int16_t)(av.wz * 100.0f);
+                    data.data.wx = (int16_t)(gyro_av.x * 100.0f);
+                    data.data.wy = (int16_t)(gyro_av.y * 100.0f);
+                    data.data.wz = (int16_t)(gyro_av.z * 100.0f);
                     data.data.roll = (int16_t)(att.roll * 100.0f);
                     data.data.pitch = (int16_t)(att.pitch * 100.0f);
                     data.data.yaw = (int16_t)(att.yaw * 100.0f);

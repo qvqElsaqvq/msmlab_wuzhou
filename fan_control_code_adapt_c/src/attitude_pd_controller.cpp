@@ -121,16 +121,13 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
             cnt_ = 0;
             WheelInit _wheelinit{
             .device_id = 0x5A,
-            .target_roll = (int16_t)angleTarget_.x(),
-            .target_pitch = (int16_t)angleTarget_.y(),
-            .target_yaw = (int16_t)angleTarget_.z(),
+            .target_roll = (int16_t)(angleTarget_.x() * 100.0f),
+            .target_pitch = (int16_t)(angleTarget_.y() * 100.0f),
+            .target_yaw = (int16_t)(angleTarget_.z() * 100.0f),
             .flag_balance = (uint8_t)if_finish_balancing_,
         };
-            _wheelinit.target_roll *=100.0f;
-            _wheelinit.target_pitch *=100.0f;
-            _wheelinit.target_yaw *=100.0f;
-        ser_.write(0x10, _wheelinit);
-        // std::cout << "wheelinit: " << (int)_wheelinit.flag_balance << std::endl;
+            ser_.write(0x10, _wheelinit);
+        std::cout << "wheelinit: " << ",roll:"<< _wheelinit.target_roll << ",pitch:"<<  _wheelinit.target_pitch<< ",yaw:"<<  _wheelinit.target_yaw << std::endl;
         }
     }
 }
