@@ -87,7 +87,8 @@ int main() {
         client.subscribe(cb.cmd_plane_basic_topic, cb.QOS);
         client.subscribe(cb.cmd_plane_trajectory_topic, cb.QOS);
         client.subscribe(cb.cmd_plane_power_topic, cb.QOS);
-        client.subscribe(cb.fan_test_topic, cb.QOS);
+        client.subscribe(cb.fan_torque_topic, cb.QOS);
+        client.subscribe(cb.fan_velocity_topic, cb.QOS);
         client.subscribe(cb.wheel_test_topic, cb.QOS);
         client.subscribe(cb.balance_topic, cb.QOS);
         client.subscribe(cb.fan_calibration_topic, cb.QOS);
@@ -95,18 +96,19 @@ int main() {
         std::cout << cb.cmd_plane_basic_topic << std::endl;
         std::cout << cb.cmd_plane_trajectory_topic << std::endl;
         std::cout << cb.cmd_plane_power_topic << std::endl;
-        std::cout << cb.fan_test_topic << std::endl;
+        std::cout << cb.fan_torque_topic << std::endl;
+        std::cout << cb.fan_velocity_topic << std::endl;
         std::cout << cb.wheel_test_topic << std::endl;
         std::cout << cb.balance_topic << std::endl;
         std::cout << cb.fan_calibration_topic << std::endl;
         std::cout << "Connected!" << std::endl;
 
         Attitude target_attitude; // 用于存储目标姿态
-        std::ofstream log_csv("attitude_compare.csv");
-        log_csv << "ms,"
-                << "gyro_roll,gyro_pitch,gyro_yaw,"
-                << "mocap_roll,mocap_pitch,mocap_yaw\n";
-        log_csv.flush();
+        // std::ofstream log_csv("attitude_compare.csv");
+        // log_csv << "ms,"
+        //         << "gyro_roll,gyro_pitch,gyro_yaw,"
+        //         << "mocap_roll,mocap_pitch,mocap_yaw\n";
+        // log_csv.flush();
         while (true) {
 
             RigidPose pose;
@@ -119,7 +121,28 @@ int main() {
             leadscrew.setIfPowerOff(if_poweroff);
             // balancer.setIfPowerOff(if_poweroff);
             // 接收数据更新并执行流程
-            if(cb.getIfNeedBalancing()) // cb.getIfNeedBalancing()
+            if (cb.getIfReceiveFanTorque())
+            {
+                // 退出可能的自动调平/闭环姿态控制状态
+                current_balance_status = false;
+                balancer.reset_balance();
+                controller.setIfFinishBalancing(false);
+
+                TorqueData t = cb.getFanTorqueData();
+                fan.sendTorque(t.tx, t.ty, t.tz);
+            }
+            // 1) 速度控制模式（第二优先级）
+            else if (cb.getIfReceiveFanVelocity())
+            {
+                current_balance_status = false;
+                balancer.reset_balance();
+                controller.setIfFinishBalancing(false);
+
+                auto w = cb.getFanVelData();
+                Vec3 wTarget(w.wx, w.wy, w.wz);
+                controller.setAngularVelocityInControl(wTarget);  // 速度闭环→力矩→sendTorque
+            }
+            else if(cb.getIfNeedBalancing()) // cb.getIfNeedBalancing()
             {
 
 				if(!current_balance_status)

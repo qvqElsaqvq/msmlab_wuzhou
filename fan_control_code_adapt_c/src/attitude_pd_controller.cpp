@@ -132,6 +132,28 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     }
 }
 
+void AttitudePDController::setAngularVelocityInControl(const Vec3& wTargetDeg)
+{
+    // 读当前角速度（deg/s）
+    auto av = gyro_.getAngularVelocity();
+    Vec3 wCurrentDeg(av.x, av.y, av.z);
+
+    // 保持与你姿态环一致的 yaw 方向约定（你在姿态控制里对 wCmd.out[2] 做了反号）
+    Vec3 wTargetAdj = wTargetDeg;
+    wTargetAdj[2] = -wTargetAdj[2];
+
+    // 只走速度环：wCurrent -> wTargetAdj，输出力矩
+    PID tauCmd = computeControl(v_pid_, wCurrentDeg, wTargetAdj);
+
+    torque_x = tauCmd.out[0];
+    torque_y = tauCmd.out[1];
+    torque_z = tauCmd.out[2];
+
+    fan_.sendTorque(torque_x, torque_y, torque_z);
+}
+
+
+
 Vec3 AttitudePDController::getTorque()
 {
     Vec3 current_torque;

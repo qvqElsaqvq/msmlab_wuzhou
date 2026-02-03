@@ -20,6 +20,9 @@ struct AttitudeData
     double pitch = 0.0, roll = 0.0, yaw = 0.0;
 };
 
+struct TorqueData { float tx=0.0f, ty=0.0f, tz=0.0f; };
+struct VelData    { float wx=0.0f, wy=0.0f, wz=0.0f; };  // deg/s
+
 class CallBack : public virtual mqtt::callback,
                  public virtual mqtt::iaction_listener
 {
@@ -56,7 +59,15 @@ public:
 
     [[nodiscard]] bool getIfReceiveAttitudeControl() const{ return if_receive_attitude_basic_; }
 
+    [[nodiscard]] bool getIfReceiveFanTorque() const { return if_receive_fan_torque_; }
+    [[nodiscard]] bool getIfReceiveFanVelocity() const { return if_receive_fan_velocity_; }
+
+    [[nodiscard]] TorqueData getFanTorqueData() const { return fan_torque_data_; }
+    [[nodiscard]] VelData getFanVelData() const { return fan_vel_data_; }
+
     [[nodiscard]] bool getIfPowerOff() const{ return if_power_off_; }
+
+
 
     void setFlagBalance(bool flag);
 
@@ -67,10 +78,12 @@ public:
     std::string cmd_plane_basic_topic; // 上位机传平面气浮台基础指令
     std::string cmd_plane_trajectory_topic; // 上位机传平面气浮内置轨迹指令
     std::string cmd_plane_power_topic; // 上位机传平面气浮台开关机指令
-    std::string fan_test_topic; // 推力器临时测试指令
+    std::string fan_torque_topic;   // 推力器力矩模式（原 attitude/fan）
+    std::string fan_velocity_topic; // 推力器速度控制模式
     std::string wheel_test_topic; // 动量轮临时测试指令
     std::string balance_topic; // 上位机传姿态气浮台调平指令
     std::string fan_calibration_topic; // 上位机传姿态气浮台旋翼校准指令
+    std::string coop_dock_topic;
 
 private:
     Plane* plane_;
@@ -81,6 +94,7 @@ private:
     WheelTest* wheel_test_;
     Balance* balance_;
     FanCalibration* fan_calibration_;
+    CooperationDock* coop_dock_;
 
     /* 控制指令标志位 */
     bool flag_balance_; // 自动调平指令标志，标志是否完成过至少一次自动调平
@@ -95,7 +109,12 @@ private:
 
     bool if_receive_attitude_basic_;
 
+    bool if_receive_fan_torque_;
+    bool if_receive_fan_velocity_;
+
     bool if_power_off_;
+
+    bool if_receive_coop_dock_;
 
     /* 数据变量 */
     double wx_;
@@ -111,6 +130,8 @@ private:
     std::vector<uint8_t> wheel_dirs_{0x55, 0x55, 0x55};
     std::vector<uint16_t> wheel_rpms_{0, 0, 0};
     AttitudeData attitude_data_;
+    TorqueData fan_torque_data_;
+    VelData fan_vel_data_;
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_MQTT_SERVER_H

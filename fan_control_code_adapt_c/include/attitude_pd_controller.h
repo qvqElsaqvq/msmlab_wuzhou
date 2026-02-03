@@ -64,6 +64,9 @@ public:
 
     /// 传入目标欧拉角（ZYX，单位 度）
     void setAttitudeInBalancing(const Vec3& eulerAngleDeg);
+
+    void setAngularVelocityInControl(const Vec3& wTargetDeg);
+
     /// X/Y/Z 双环 PID，计算推力器力矩输出
     PID computeControl(PID& pid, Vec3& ref, Vec3& set);
     /// 供外部读取当前扭矩
