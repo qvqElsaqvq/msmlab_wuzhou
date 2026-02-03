@@ -219,9 +219,9 @@ int main() {
                 att.roll  = rpyM_deg.x();
                 att.pitch = rpyM_deg.y();
                 att.yaw   = rpyM_deg.z();
-                std::cout << "[Angle form 动捕] roll=" << att.roll
-                              << ", pitch=" << att.pitch
-                              << ", yaw=" << att.yaw << std::endl;
+                // std::cout << "[Angle form 动捕] roll=" << att.roll
+                //               << ", pitch=" << att.pitch
+                //               << ", yaw=" << att.yaw << std::endl;
                  // std::cout << "[Angle form 陀螺仪] roll=" << gyro_att.x
                  //               << ", pitch=" << gyro_att.y
                  //               << ", yaw=" << gyro_att.z << std::endl;
@@ -234,24 +234,24 @@ int main() {
             }
 
 
-            auto gatt = gyro.getAttitude();
-            static auto t0 = std::chrono::steady_clock::now();
-            auto now = std::chrono::steady_clock::now();
-            auto ms =
-                std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
-
-            log_csv << ms << ","
-                    << std::fixed << std::setprecision(6)
-                    << gatt.x << "," << gatt.y << "," << gatt.z << ","
-                    << att.roll << "," << att.pitch << "," << att.yaw
-                    << "\n";
-
-            // 可选：防止掉电丢数据
-            static int flush_cnt = 0;
-            if (++flush_cnt >= 50) {
-                log_csv.flush();
-                flush_cnt = 0;
-            }
+            // auto gatt = gyro.getAttitude();
+            // static auto t0 = std::chrono::steady_clock::now();
+            // auto now = std::chrono::steady_clock::now();
+            // auto ms =
+            //     std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
+            //
+            // log_csv << ms << ","
+            //         << std::fixed << std::setprecision(6)
+            //         << gatt.x << "," << gatt.y << "," << gatt.z << ","
+            //         << att.roll << "," << att.pitch << "," << att.yaw
+            //         << "\n";
+            //
+            // // 可选：防止掉电丢数据
+            // static int flush_cnt = 0;
+            // if (++flush_cnt >= 50) {
+            //     log_csv.flush();
+            //     flush_cnt = 0;
+            // }
 
             auto gyro_av = gyro.getAngularVelocity();
             AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};
