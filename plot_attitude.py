@@ -32,50 +32,43 @@ def plot_attitude(csv_file):
 
     time_ms = df['ms']
 
+    def plot_sensor_rpy(sensor_name, roll_col, pitch_col, yaw_col, filename):
+        fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
+        fig.suptitle(f'{sensor_name} RPY Data')
+
+        axes[0].plot(time_ms, df[roll_col], label='Roll', color='r', linewidth=1.5)
+        axes[0].set_ylabel('Roll Angle')
+        axes[0].grid(True)
+        axes[0].legend(loc='upper right')
+
+        axes[1].plot(time_ms, df[pitch_col], label='Pitch', color='g', linewidth=1.5)
+        axes[1].set_ylabel('Pitch Angle')
+        axes[1].grid(True)
+        axes[1].legend(loc='upper right')
+
+        axes[2].plot(time_ms, df[yaw_col], label='Yaw', color='b', linewidth=1.5)
+        axes[2].set_ylabel('Yaw Angle')
+        axes[2].set_xlabel('Time (ms)')
+        axes[2].grid(True)
+        axes[2].legend(loc='upper right')
+
+        plt.tight_layout()
+        plt.savefig(filename, dpi=300)
+
     # ==============================
     # 1. 绘制 Gyro 传感器的 RPY 数据
     # ==============================
-    plt.figure("Gyro Attitude", figsize=(10, 6))
-    plt.plot(time_ms, df['gyro_roll'], label='Roll', linewidth=1.5)
-    plt.plot(time_ms, df['gyro_pitch'], label='Pitch', linewidth=1.5)
-    plt.plot(time_ms, df['gyro_yaw'], label='Yaw', linewidth=1.5)
-    plt.xlabel('Time (ms)')
-    plt.ylabel('Angle')
-    plt.title('Gyro Sensor RPY Data')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig('gyro_rpy.png', dpi=300)
+    plot_sensor_rpy('Gyro Sensor', 'gyro_roll', 'gyro_pitch', 'gyro_yaw', 'gyro_rpy.png')
     
     # ==============================
     # 2. 绘制 Mocap 传感器的 RPY 数据
     # ==============================
-    plt.figure("Mocap Attitude", figsize=(10, 6))
-    plt.plot(time_ms, df['mocap_roll'], label='Roll', linewidth=1.5)
-    plt.plot(time_ms, df['mocap_pitch'], label='Pitch', linewidth=1.5)
-    plt.plot(time_ms, df['mocap_yaw'], label='Yaw', linewidth=1.5)
-    plt.xlabel('Time (ms)')
-    plt.ylabel('Angle')
-    plt.title('Mocap Sensor RPY Data')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig('mocap_rpy.png', dpi=300)
+    plot_sensor_rpy('Mocap Sensor', 'mocap_roll', 'mocap_pitch', 'mocap_yaw', 'mocap_rpy.png')
 
     # ==============================
     # 3. 绘制 New (算法/计算) 的 RPY 数据
     # ==============================
-    plt.figure("New Attitude", figsize=(10, 6))
-    plt.plot(time_ms, df['new_roll'], label='Roll', linewidth=1.5)
-    plt.plot(time_ms, df['new_pitch'], label='Pitch', linewidth=1.5)
-    plt.plot(time_ms, df['new_yaw'], label='Yaw', linewidth=1.5)
-    plt.xlabel('Time (ms)')
-    plt.ylabel('Angle')
-    plt.title('New Algorithm RPY Data')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig('new_rpy.png', dpi=300)
+    plot_sensor_rpy('New Algorithm', 'new_roll', 'new_pitch', 'new_yaw', 'new_rpy.png')
 
     print("绘图完成！已保存为当前目录下的:")
     print(" - gyro_rpy.png")
