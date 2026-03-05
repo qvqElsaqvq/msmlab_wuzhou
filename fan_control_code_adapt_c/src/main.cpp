@@ -19,6 +19,8 @@
 #include <iomanip>
 #include <ctime>
 
+#include "ForsenseIMU.h"
+
 
 using Vec3 = Eigen::Vector3d;
 
@@ -73,6 +75,8 @@ int main() {
     mqtt::connect_options connOpts;
     connOpts.set_clean_session(false);
 
+    ForsenseIMU::InitSerial("/dev/ttyACM1");
+
     bool flag_balancing = false; // 自动调平是否完成
     bool set_balancing = false; // 是否触发自动调平
     bool flag_fan_calibration = false; // 旋翼校准是否完成
@@ -104,12 +108,18 @@ int main() {
         std::cout << "Connected!" << std::endl;
 
         Attitude target_attitude; // 用于存储目标姿态
-        // std::ofstream log_csv("attitude_compare.csv");
-        // log_csv << "ms,"
-        //         << "gyro_roll,gyro_pitch,gyro_yaw,"
-        //         << "mocap_roll,mocap_pitch,mocap_yaw\n";
-        // log_csv.flush();
+        std::ofstream log_csv("attitude_compare.csv");
+        log_csv << "ms,"
+                << "gyro_roll,gyro_pitch,gyro_yaw,"
+                << "mocap_roll,mocap_pitch,mocap_yaw,"
+                << "new_roll,new_pitch,new_yaw\n"
+        ;
+        log_csv.flush();
         while (true) {
+
+            ForsenseIMU::ProcessSerialData();
+
+            auto new_imu_data = ForsenseIMU::GetLatestData();
 
             RigidPose pose;
             bool received_pose = Nokov_GetPoseByName("WUZHOUSHANG", pose); // 获取动捕数据
@@ -248,6 +258,9 @@ int main() {
                  // std::cout << "[Angle form 陀螺仪] roll=" << gyro_att.x
                  //               << ", pitch=" << gyro_att.y
                  //               << ", yaw=" << gyro_att.z << std::endl;
+                // std::cout << "[Angle form 新陀螺仪] roll=" << new_imu_data.gx
+                //               << ", pitch=" << new_imu_data.gy
+                //               << ", yaw=" << new_imu_data.gz << std::endl;
             } else {
                 // 2) 没动捕就用陀螺仪姿态角（deg）
                 auto gyro_att = gyro.getAttitude();
@@ -257,24 +270,25 @@ int main() {
             }
 
 
-            // auto gatt = gyro.getAttitude();
-            // static auto t0 = std::chrono::steady_clock::now();
-            // auto now = std::chrono::steady_clock::now();
-            // auto ms =
-            //     std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
-            //
-            // log_csv << ms << ","
-            //         << std::fixed << std::setprecision(6)
-            //         << gatt.x << "," << gatt.y << "," << gatt.z << ","
-            //         << att.roll << "," << att.pitch << "," << att.yaw
-            //         << "\n";
-            //
-            // // 可选：防止掉电丢数据
-            // static int flush_cnt = 0;
-            // if (++flush_cnt >= 50) {
-            //     log_csv.flush();
-            //     flush_cnt = 0;
-            // }
+            auto gatt = gyro.getAttitude();
+            static auto t0 = std::chrono::steady_clock::now();
+            auto now = std::chrono::steady_clock::now();
+            auto ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
+
+            log_csv << ms << ","
+                    << std::fixed << std::setprecision(6)
+                    << gatt.x << "," << gatt.y << "," << gatt.z << ","
+                    << att.roll << "," << att.pitch << "," << att.yaw << ","
+                    << new_imu_data.gx << "," << new_imu_data.gy << "," << new_imu_data.gz
+                    << "\n";
+
+            // 可选：防止掉电丢数据
+            static int flush_cnt = 0;
+            if (++flush_cnt >= 50) {
+                log_csv.flush();
+                flush_cnt = 0;
+            }
 
             auto gyro_av = gyro.getAngularVelocity();
             AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};
