@@ -30,7 +30,7 @@ GyroScope gyro(msm_serial);
 LeadScrewController leadscrew(msm_serial);
 Wheel wheel(msm_serial);
 Fan fan(msm_serial);
-AttitudePDController controller(gyro, fan, wheel,msm_serial);
+AttitudePDController controller(gyro, fan, wheel, msm_serial);
 MassCenterBalancer balancer(gyro, fan, leadscrew, wheel, controller);
 
 /* ---------------- 线程任务 ---------------- */
@@ -42,10 +42,11 @@ void do_balance_task(MassCenterBalancer &balancer) {
 }
 
 void do_attitude_control_task(AttitudePDController &controller,
-                              const Attitude &target) {
+                              const Attitude &target, const std::optional<GyroScope::Vec3> other_av = std::nullopt,
+                              const std::optional<GyroScope::Vec3> other_at = std::nullopt) {
     // std::cout << "执行姿态控制算法rpy: " << target.roll << ", " << target.pitch << ", " << target.yaw << std::endl;
     Vec3 euler_angle_target(target.roll, target.pitch, target.yaw);
-    controller.setAttitudeInBalancing(euler_angle_target);
+    controller.setAttitudeInBalancing(euler_angle_target, other_av, other_at);
     // std::cout << "姿态控制完成\n";
 }
 
@@ -59,7 +60,7 @@ int main() {
     bool if_poweroff = false;
 
     // 1) 先启动 Nokov（你可以写死 IP，也可以从配置文件读）
-    const char* mocap_ip = "192.168.31.3";
+    const char *mocap_ip = "192.168.31.3";
     if (Nokov_Start(mocap_ip) != 0) {
         std::cerr << "[NOKOV] start failed\n";
         return 1;
@@ -112,20 +113,9 @@ int main() {
         log_csv << "ms,"
                 << "gyro_roll,gyro_pitch,gyro_yaw,"
                 << "mocap_roll,mocap_pitch,mocap_yaw,"
-                << "new_roll,new_pitch,new_yaw\n"
-        ;
+                << "new_roll,new_pitch,new_yaw\n";
         log_csv.flush();
         while (true) {
-            auto now1 = std::chrono::steady_clock::now();
-            std::chrono::duration<double, std::milli> t = now1.time_since_epoch();
-
-            target_attitude.roll = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
-            target_attitude.pitch = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
-            target_attitude.yaw = 30 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=30
-
-            // std::cout << target_attitude.roll << " " << target_attitude.pitch << " " << target_attitude.yaw << std::endl;
-            do_attitude_control_task(controller, target_attitude);
-
 
             ForsenseIMU::ProcessSerialData();
 
@@ -141,8 +131,7 @@ int main() {
             leadscrew.setIfPowerOff(if_poweroff);
             // balancer.setIfPowerOff(if_poweroff);
             // 接收数据更新并执行流程
-            if (cb.getIfReceiveFanTorque())
-            {
+            if (cb.getIfReceiveFanTorque()) {
                 // 退出可能的自动调平/闭环姿态控制状态
                 current_balance_status = false;
                 balancer.reset_balance();
@@ -152,21 +141,17 @@ int main() {
                 fan.sendTorque(t.tx, t.ty, t.tz);
             }
             // 1) 速度控制模式（第二优先级）
-            else if (cb.getIfReceiveFanVelocity())
-            {
+            else if (cb.getIfReceiveFanVelocity()) {
                 current_balance_status = false;
                 balancer.reset_balance();
                 controller.setIfFinishBalancing(false);
 
                 auto w = cb.getFanVelData();
                 Vec3 wTarget(w.wx, w.wy, w.wz);
-                controller.setAngularVelocityInControl(wTarget);  // 速度闭环→力矩→sendTorque
-            }
-            else if(cb.getIfNeedBalancing()) // cb.getIfNeedBalancing()
+                controller.setAngularVelocityInControl(wTarget); // 速度闭环→力矩→sendTorque
+            } else if (cb.getIfNeedBalancing()) // cb.getIfNeedBalancing()
             {
-
-				if(!current_balance_status)
-                {
+                if (!current_balance_status) {
                     std::cout << "执行自动调平算法...\n";
                     std::vector<int16_t> action{3000};
                     leadscrew.moveTo(action); // 先降 Z 轴质量块
@@ -184,9 +169,7 @@ int main() {
                     set_balancing = false;
                     balancer.reset_balance();
                 }
-
             } else if (cb.getIfReceiveAttitudeControl()) {
-
                 AttitudeData angle = cb.getAttitudeData();
                 target_attitude.roll = angle.roll; // 你说：这是动捕系下的姿态角c
                 target_attitude.pitch = angle.pitch;
@@ -198,15 +181,15 @@ int main() {
                     Attitude target_mocap{angle.roll, angle.pitch, angle.yaw};
 
                     Attitude target_plat;
-                    target_plat.roll  = target_mocap.roll;
-                    target_plat.pitch = -target_mocap.pitch;   // ✅ 关键：pitch 反号
-                    target_plat.yaw   = target_mocap.yaw;
+                    target_plat.roll = target_mocap.roll;
+                    target_plat.pitch = -target_mocap.pitch; // ✅ 关键：pitch 反号
+                    target_plat.yaw = target_mocap.yaw;
 
                     // 目标四元数（平台等价）
                     Eigen::Quaterniond qT =
-                        gyro_util::quatFromEulerZYX_deg(target_plat.roll,
-                                                        target_plat.pitch,
-                                                        target_plat.yaw);
+                            gyro_util::quatFromEulerZYX_deg(target_plat.roll,
+                                                            target_plat.pitch,
+                                                            target_plat.yaw);
 
                     // ===== 2) 当前：动捕当前 -> 转欧拉 -> pitch 反号 -> 再转四元数 =====
                     Eigen::Quaterniond qM_raw(pose.qw, pose.qx, pose.qy, pose.qz);
@@ -214,10 +197,10 @@ int main() {
 
                     // 用你统一的欧拉提取（ZYX, deg）
                     Eigen::Vector3d rpyM = gyro_util::eulerZYX_degFromQuat(qM_raw); // [roll,pitch,yaw]
-                    rpyM.y() = -rpyM.y();   // ✅ 关键：pitch 反号
+                    rpyM.y() = -rpyM.y(); // ✅ 关键：pitch 反号
 
                     Eigen::Quaterniond qM =
-                        gyro_util::quatFromEulerZYX_deg(rpyM.x(), rpyM.y(), rpyM.z());
+                            gyro_util::quatFromEulerZYX_deg(rpyM.x(), rpyM.y(), rpyM.z());
 
                     // ===== 3) 误差驱动：动捕当前(平台等价) -> 目标(平台等价) =====
                     Eigen::Quaterniond qDelta = qM.inverse() * qT;
@@ -232,19 +215,18 @@ int main() {
 
                     // ===== 5) 给 PID 的欧拉目标（平台系）=====
                     Eigen::Vector3d rpyG_tgt = gyro_util::eulerZYX_degFromQuat(qG_tgt);
-                    target_attitude.roll  = rpyG_tgt.x();
+                    target_attitude.roll = rpyG_tgt.x();
                     target_attitude.pitch = rpyG_tgt.y();
-                    target_attitude.yaw   = rpyG_tgt.z();
+                    target_attitude.yaw = rpyG_tgt.z();
                     auto gatt = gyro.getAttitude();
-                    if (fabs(gatt.x-target_attitude.roll) <1.0f and fabs(gatt.y-target_attitude.pitch) <1.0f and fabs(gatt.z-target_attitude.yaw) <3.0f) {
+                    if (fabs(gatt.x - target_attitude.roll) < 1.0f and fabs(gatt.y - target_attitude.pitch) < 1.0f and
+                        fabs(gatt.z - target_attitude.yaw) < 3.0f) {
                         controller.setIfFinishBalancing(true);
                     }
                     std::cout << "[Target Converted M->G] roll=" << target_attitude.roll
-                              << ", pitch=" << target_attitude.pitch
-                              << ", yaw=" << target_attitude.yaw << std::endl;
-
-                }
-                else {
+                            << ", pitch=" << target_attitude.pitch
+                            << ", yaw=" << target_attitude.yaw << std::endl;
+                } else {
                     controller.setIfFinishBalancing(true);
                 }
                 // auto now = std::chrono::steady_clock::now();
@@ -266,9 +248,9 @@ int main() {
                 qM.normalize();
 
                 Eigen::Vector3d rpyM_deg = gyro_util::eulerZYX_degFromQuat(qM); // [roll,pitch,yaw]
-                att.roll  = rpyM_deg.x();
+                att.roll = rpyM_deg.x();
                 att.pitch = rpyM_deg.y();
-                att.yaw   = rpyM_deg.z();
+                att.yaw = rpyM_deg.z();
                 auto gyro_att = gyro.getAttitude();
                 // std::cout << "[Angle form 动捕] roll=" << att.roll
                 //               << ", pitch=" << att.pitch
@@ -282,9 +264,9 @@ int main() {
             } else {
                 // 2) 没动捕就用陀螺仪姿态角（deg）
                 auto gyro_att = gyro.getAttitude();
-                att.roll  = gyro_att.x;
+                att.roll = gyro_att.x;
                 att.pitch = gyro_att.y;
-                att.yaw   = gyro_att.z;
+                att.yaw = gyro_att.z;
             }
 
 
@@ -292,7 +274,18 @@ int main() {
             static auto t0 = std::chrono::steady_clock::now();
             auto now = std::chrono::steady_clock::now();
             auto ms =
-                std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
+                    std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
+
+            std::chrono::duration<double, std::milli> t = now.time_since_epoch();
+
+            target_attitude.roll = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
+            target_attitude.pitch = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
+            target_attitude.yaw = 30 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=30
+
+            // std::cout << target_attitude.roll << " " << target_attitude.pitch << " " << target_attitude.yaw << std::endl;
+            do_attitude_control_task(controller, target_attitude,
+                GyroScope::Vec3{-new_imu_data.gx, new_imu_data.gy, -new_imu_data.gz},
+                GyroScope::Vec3{-new_imu_data.roll, new_imu_data.pitch, -new_imu_data.yaw});
 
             log_csv << ms << ","
                     << std::fixed << std::setprecision(6)
@@ -326,18 +319,18 @@ int main() {
                     data.data.platform_type = 0xF4;
                     data.data.cmd_count = 0x01;
                     data.data.file_count = 0x01;
-                    if(if_poweroff)
+                    if (if_poweroff)
                         data.data.platform_status = 0x00;
                     else
                         data.data.platform_status = 0x01;
 
                     data.data.gyro_fault = 0x00;
-                    data.data.wx = (int16_t)(gyro_av.x * 100.0f);
-                    data.data.wy = (int16_t)(gyro_av.y * 100.0f);
-                    data.data.wz = (int16_t)(gyro_av.z * 100.0f);
-                    data.data.roll = (int16_t)(att.roll * 100.0f);
-                    data.data.pitch = (int16_t)(att.pitch * 100.0f);
-                    data.data.yaw = (int16_t)(att.yaw * 100.0f);
+                    data.data.wx = (int16_t) (gyro_av.x * 100.0f);
+                    data.data.wy = (int16_t) (gyro_av.y * 100.0f);
+                    data.data.wz = (int16_t) (gyro_av.z * 100.0f);
+                    data.data.roll = (int16_t) (att.roll * 100.0f);
+                    data.data.pitch = (int16_t) (att.pitch * 100.0f);
+                    data.data.yaw = (int16_t) (att.yaw * 100.0f);
 
                     data.data.wheel_dir = wheel_data.dir;
                     data.data.wheel_current = 0;
@@ -360,9 +353,9 @@ int main() {
                     data.data.thrust_z = 0;
 
                     Vec3 current_torque = controller.getTorque();
-                    data.data.torque_roll = (int16_t)(current_torque.x() * 100.0f);
-                    data.data.torque_pitch = (int16_t)(current_torque.y() * 100.0f);
-                    data.data.torque_yaw = (int16_t)(current_torque.z() * 100.0f);
+                    data.data.torque_roll = (int16_t) (current_torque.x() * 100.0f);
+                    data.data.torque_pitch = (int16_t) (current_torque.y() * 100.0f);
+                    data.data.torque_yaw = (int16_t) (current_torque.z() * 100.0f);
 
                     data.data.balance_flag = flag_balancing;
                     data.data.balance_set = set_balancing;
@@ -381,8 +374,7 @@ int main() {
             // 控制循环频率
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
-    }
-    catch (const mqtt::exception &e) {
+    } catch (const mqtt::exception &e) {
         std::cerr << "Mqtt Error: " << e.what() << std::endl;
         client.stop_consuming();
         client.disconnect()->wait();

@@ -4,6 +4,9 @@
 
 #include "attitude_pd_controller.h"
 
+#include <memory>
+#include <optional>
+
 using Vec3 = Eigen::Vector3d;
 using Quat = Eigen::Quaterniond;
 
@@ -85,7 +88,9 @@ PID AttitudePDController::computeControl(PID& pid, Vec3& ref, Vec3& set)
     return pid;
 }
 
-void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
+void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg,
+    const std::optional<GyroScope::Vec3> other_av,
+    const std::optional<GyroScope::Vec3> other_at)
 {
     /*
      * 调平过程中使用的不进死循环的控制
@@ -95,8 +100,8 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     angleTarget_ = eulerAngleDeg;
 
     /* 读当前姿态 */
-    auto av = gyro_.getAngularVelocity();  // °/s
-    auto at = gyro_.getAttitude();  // °
+    auto av = other_av.value_or(gyro_.getAngularVelocity()); // °/s
+    auto at = other_at.value_or(gyro_.getAttitude());// °
     Vec3 angleCurrentDeg(at.x, at.y, at.z);
     Vec3 wCurrentDeg(av.x, av.y, av.z);
 
