@@ -67,7 +67,9 @@ public:
 
     [[nodiscard]] bool getIfPowerOff() const{ return if_power_off_; }
 
+    [[nodiscard]] bool getIfReceiveCoopDock() const { return if_receive_coop_dock_; }
 
+    [[nodiscard]] CooperationDockData getCoopDockData() const {return coop_dock_data_;}
 
     void setFlagBalance(bool flag);
 
@@ -132,6 +134,7 @@ private:
     AttitudeData attitude_data_;
     TorqueData fan_torque_data_;
     VelData fan_vel_data_;
+    CooperationDockData coop_dock_data_;
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_MQTT_SERVER_H

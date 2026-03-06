@@ -14,6 +14,7 @@
 #include "gyro_scope.h"
 #include "MQTT_server.h"
 #include "nokov_bridge.h"
+#include "docker.h"
 #include <cmath>
 #include <fstream>
 #include <iomanip>
@@ -32,6 +33,7 @@ Wheel wheel(msm_serial);
 Fan fan(msm_serial);
 AttitudePDController controller(gyro, fan, wheel, msm_serial);
 MassCenterBalancer balancer(gyro, fan, leadscrew, wheel, controller);
+Docker docker(controller);
 
 /* ---------------- 线程任务 ---------------- */
 void do_balance_task(MassCenterBalancer &balancer) {
@@ -238,6 +240,12 @@ int main() {
                 //
                 // std::cout << target_attitude.roll << " " << target_attitude.pitch << " " << target_attitude.yaw << std::endl;
                 do_attitude_control_task(controller, target_attitude);
+            }else if (cb.getIfReceiveCoopDock()) {
+                CooperationDockData cooperation_dock_data = cb.getCoopDockData();
+                bool status = docker.docking(cooperation_dock_data);
+                if (!status) {
+                    std::cout << "[Cooperation Docker] Docking error, failed to get pose!" << std::endl;
+                }
             }
 
             Attitude att{0.0, 0.0, 0.0};
@@ -270,36 +278,36 @@ int main() {
             }
 
 
-            auto gatt = gyro.getAttitude();
-            static auto t0 = std::chrono::steady_clock::now();
-            auto now = std::chrono::steady_clock::now();
-            auto ms =
-                    std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
+            // auto gatt = gyro.getAttitude();
+            // static auto t0 = std::chrono::steady_clock::now();
+            // auto now = std::chrono::steady_clock::now();
+            // auto ms =
+            //         std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
 
-            std::chrono::duration<double, std::milli> t = now.time_since_epoch();
+            // std::chrono::duration<double, std::milli> t = now.time_since_epoch();
+            //
+            // target_attitude.roll = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
+            // target_attitude.pitch = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
+            // target_attitude.yaw = 30 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=30
+            //
+            // // std::cout << target_attitude.roll << " " << target_attitude.pitch << " " << target_attitude.yaw << std::endl;
+            // do_attitude_control_task(controller, target_attitude,
+            //     GyroScope::Vec3{-new_imu_data.gx, new_imu_data.gy, -new_imu_data.gz},
+            //     GyroScope::Vec3{-new_imu_data.roll, new_imu_data.pitch, -new_imu_data.yaw});
+            //
+            // log_csv << ms << ","
+            //         << std::fixed << std::setprecision(6)
+            //         << gatt.x << "," << gatt.y << "," << gatt.z << ","
+            //         << att.roll << "," << att.pitch << "," << att.yaw << ","
+            //         << new_imu_data.roll << "," << new_imu_data.pitch << "," << new_imu_data.yaw
+            //         << "\n";
 
-            target_attitude.roll = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
-            target_attitude.pitch = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
-            target_attitude.yaw = 30 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=30
-
-            // std::cout << target_attitude.roll << " " << target_attitude.pitch << " " << target_attitude.yaw << std::endl;
-            do_attitude_control_task(controller, target_attitude,
-                GyroScope::Vec3{-new_imu_data.gx, new_imu_data.gy, -new_imu_data.gz},
-                GyroScope::Vec3{-new_imu_data.roll, new_imu_data.pitch, -new_imu_data.yaw});
-
-            log_csv << ms << ","
-                    << std::fixed << std::setprecision(6)
-                    << gatt.x << "," << gatt.y << "," << gatt.z << ","
-                    << att.roll << "," << att.pitch << "," << att.yaw << ","
-                    << new_imu_data.roll << "," << new_imu_data.pitch << "," << new_imu_data.yaw
-                    << "\n";
-
-            // 可选：防止掉电丢数据
-            static int flush_cnt = 0;
-            if (++flush_cnt >= 50) {
-                log_csv.flush();
-                flush_cnt = 0;
-            }
+            // // 可选：防止掉电丢数据
+            // static int flush_cnt = 0;
+            // if (++flush_cnt >= 50) {
+            //     log_csv.flush();
+            //     flush_cnt = 0;
+            // }
 
             auto gyro_av = gyro.getAngularVelocity();
             AngularVel av{gyro_av.x, gyro_av.y, gyro_av.z};

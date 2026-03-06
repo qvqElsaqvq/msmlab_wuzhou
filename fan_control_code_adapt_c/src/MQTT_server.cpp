@@ -153,6 +153,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         // 进入姿态闭环时，退出风扇两种模式
         if_receive_fan_torque_ = false;
         if_receive_fan_velocity_ = false;
+        if_receive_coop_dock_ = false; // 退出对接模式
 
         if_power_off_ = false;
     }
@@ -208,6 +209,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             if_receive_fan_velocity_ = false;
             if_receive_attitude_basic_ = false;
             if_need_balancing_ = false;
+            if_receive_coop_dock_ = false;
 
             std::cout << "------------- 指令关机 -----------" << std::endl;
         }
@@ -248,11 +250,12 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
          fan_torque_data_.ty = sy * (static_cast<float>(fan_test_->data.torque_y) / 100.0f);
          fan_torque_data_.tz = sz * (static_cast<float>(fan_test_->data.torque_z) / 100.0f);
 
-        // 触发纯力矩控制模式：需要退出其他模式（闭环姿态控制 / 自动调平）
+        // 触发纯力矩控制模式：需要退出其他模式（闭环姿态控制 / 自动调平 / 对接）
          if_receive_fan_torque_ = true;
          if_receive_fan_velocity_ = false;
          if_receive_attitude_basic_ = false;
          if_need_balancing_ = false;
+         if_receive_coop_dock_ = false;
 
          if_power_off_ = false;
     }
@@ -282,11 +285,12 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         fan_vel_data_.wy = sy * (static_cast<float>(fan_test_->data.torque_y) / 100.0f);
         fan_vel_data_.wz = sz * (static_cast<float>(fan_test_->data.torque_z) / 100.0f);
 
-        // 模式互斥：进入速度模式，退出调平/姿态/力矩模式
+        // 模式互斥：进入速度模式，退出调平/姿态/力矩模式/对接
         if_receive_fan_velocity_ = true;
         if_receive_fan_torque_ = false;
         if_receive_attitude_basic_ = false;
         if_need_balancing_ = false;
+        if_receive_coop_dock_ = false;
 
         if_power_off_ = false;
     }
@@ -361,6 +365,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         }
 
          if_receive_fan_torque_ = false;
+         if_receive_coop_dock_ = false;
          if_power_off_ = false;
      }
     else if (msg->get_topic() == "attitude/calibration")
@@ -437,13 +442,15 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
 
         std::memcpy(coop_dock_, buffer, idx);
 
+ 	    coop_dock_data_ = coop_dock_->data;
+
         std::cout << "----- CooperationDock arrived -----\n"
                   << " self_device_id: " << std::hex << std::setfill('0') << std::setw(2)
                   << (int)coop_dock_->data.self_device_id
                   << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2)
                   << (int)coop_dock_->data.cmd_type
-                  << " target_device_id: " << std::hex << std::setfill('0') << std::setw(2)
-                  << (int)coop_dock_->data.target_device_id
+                  << " dock_device_id: " << std::hex << std::setfill('0') << std::setw(2)
+                  << (int)coop_dock_->data.dock_device_id
                   << " checksum: " << std::hex << std::setfill('0') << std::setw(2)
                   << (int)coop_dock_->tail.checksum
                   << "\n";
@@ -457,6 +464,10 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         }
 
         if_receive_coop_dock_ = true;
+        if_receive_attitude_basic_ = false;
+        if_receive_fan_torque_ = false;
+        if_receive_fan_velocity_ = false;
+        if_need_balancing_ = false;
     }
 }
 
