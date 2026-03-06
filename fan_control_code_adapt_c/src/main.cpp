@@ -33,7 +33,7 @@ Wheel wheel(msm_serial);
 Fan fan(msm_serial);
 AttitudePDController controller(gyro, fan, wheel, msm_serial);
 MassCenterBalancer balancer(gyro, fan, leadscrew, wheel, controller);
-Docker docker(controller);
+Docker docker(gyro, controller);
 
 /* ---------------- 线程任务 ---------------- */
 void do_balance_task(MassCenterBalancer &balancer) {

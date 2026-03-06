@@ -368,7 +368,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
          if_receive_coop_dock_ = false;
          if_power_off_ = false;
      }
-    else if (msg->get_topic() == "attitude/calibration")
+    else if (msg->get_topic() == "attitude/calibration1")
     {
         std::cout << "On topic: " << msg->get_topic() << std::endl;
         const std::string& pl = msg->get_payload();
@@ -407,7 +407,7 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
                 if_need_fan_calibration_ = false;
         }
     }
- 	else if (msg->get_topic() == "attitude/cooperation")
+ 	else if (msg->get_topic() == "attitude/calibration")
     {
         std::cout << "On topic: " << msg->get_topic() << std::endl;
 

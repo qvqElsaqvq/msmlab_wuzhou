@@ -106,7 +106,11 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg,
     Vec3 wCurrentDeg(av.x, av.y, av.z);
 
     /* X/Y/Z 双环 PID */
-    PID wCmd = computeControl(angle_pid_, angleCurrentDeg, angleTarget_);
+    auto angle_diff = [](double tar, double cur){return 180.0 / M_PI * atan2(sin(tar / 180.0 * M_PI - cur / 180.0 * M_PI), cos(tar / 180.0 * M_PI - cur / 180.0 * M_PI));};
+    Vec3 err_angle{angle_diff(angleTarget_.x(), at.x), angle_diff(angleTarget_.y(), at.y), angle_diff(angleTarget_.z(), at.z)};
+    Vec3 ZERO{0.0, 0.0, 0.0};
+    // std::cout << "err: " <<angleTarget_.z() << " " << at.z << std::endl;
+    PID wCmd = computeControl(angle_pid_, ZERO, err_angle);
     wCmd.out[2] = -wCmd.out[2];
     // std::cout << "last_error: " << angle_pid_.last_error << std::endl;
     // std::cout << "angle out: " << wCmd.out[0] << ", " << wCmd.out[1] << ", " << wCmd.out[2] << std::endl;

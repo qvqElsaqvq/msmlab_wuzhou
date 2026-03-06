@@ -5,13 +5,13 @@
 #include "docker.h"
 #include <iostream>
 
-Docker::Docker(AttitudePDController &controller) : controller_(controller) {
+Docker::Docker(GyroScope& gyro, AttitudePDController &controller) : gyro_(gyro), controller_(controller) {
 }
 
 bool Docker::docking(CooperationDockData cooperation_dock_data) {
     RigidPose dock_pose, self_pose;
-    bool dock_success = Nokov_GetPoseById(cooperation_dock_data.dock_device_id, dock_pose);
-    bool self_success = Nokov_GetPoseById(cooperation_dock_data.self_device_id, self_pose);
+    bool dock_success = Nokov_GetPoseById(1, dock_pose);
+    bool self_success = Nokov_GetPoseById(2, self_pose);
     if (!dock_success || !self_success) {
         std::cout << "[Dock Controller] Failed to get new dock pose" << std::endl;
         return false;
@@ -40,6 +40,6 @@ bool Docker::docking(CooperationDockData cooperation_dock_data) {
 
     std::cout << "[Dock Controller] yaw diff: " << yaw_diff_deg << " deg" << std::endl;
 
-    controller_.setAttitudeInBalancing({0.0, 0.0, target_yaw_deg});
+    controller_.setAttitudeInBalancing({0.0, 0.0, gyro_.getAttitude().z + yaw_diff_deg});
     return true;
 }

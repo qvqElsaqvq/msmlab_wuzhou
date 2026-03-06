@@ -13,9 +13,10 @@
 class Docker {
 private:
     AttitudePDController &controller_;
+    GyroScope &gyro_;
 
 public:
-    Docker(AttitudePDController &controller);
+    Docker(GyroScope& gyro, AttitudePDController &controller);
 
     bool docking(CooperationDockData cooperation_dock_data);
 };
