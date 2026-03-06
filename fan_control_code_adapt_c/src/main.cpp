@@ -255,12 +255,12 @@ int main() {
                 // std::cout << "[Angle form 动捕] roll=" << att.roll
                 //               << ", pitch=" << att.pitch
                 //               << ", yaw=" << att.yaw << std::endl;
-                //  std::cout << "[Angle form 陀螺仪] roll=" << gyro_att.x
-                //                << ", pitch=" << gyro_att.y
-                //                << ", yaw=" << gyro_att.z << std::endl;
-                // std::cout << "[Angle form 新陀螺仪] roll=" << new_imu_data.roll
-                //               << ", pitch=" << new_imu_data.pitch
-                //               << ", yaw=" << new_imu_data.yaw << std::endl;
+                 std::cout << "[Angle form 陀螺仪] roll=" << gyro_att.x
+                               << ", pitch=" << gyro_att.y
+                               << ", yaw=" << gyro_att.z << std::endl;
+                std::cout << "[Angle form 新陀螺仪] roll=" << new_imu_data.roll
+                              << ", pitch=" << new_imu_data.pitch
+                              << ", yaw=" << new_imu_data.yaw << std::endl;
             } else {
                 // 2) 没动捕就用陀螺仪姿态角（deg）
                 auto gyro_att = gyro.getAttitude();
@@ -278,15 +278,16 @@ int main() {
 
             std::chrono::duration<double, std::milli> t = now.time_since_epoch();
 
-            target_attitude.roll = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
-            target_attitude.pitch = 5 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
-            target_attitude.yaw = 30 * sin(2 * 3.14 / 180 * t.count() / 1000); //+=30
+            target_attitude.roll = 5;// * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
+            target_attitude.pitch = -5;// * sin(2 * 3.14 / 180 * t.count() / 1000); //+=5
+            target_attitude.yaw = 30;// * sin(2 * 3.14 / 180 * t.count() / 1000); //+=30
 
-            // std::cout << target_attitude.roll << " " << target_attitude.pitch << " " << target_attitude.yaw << std::endl;
+
+
+            std::cout << target_attitude.roll << " " << target_attitude.pitch << " " << target_attitude.yaw << std::endl;
             do_attitude_control_task(controller, target_attitude,
-                GyroScope::Vec3{-new_imu_data.gx, new_imu_data.gy, -new_imu_data.gz},
-                GyroScope::Vec3{-new_imu_data.roll, new_imu_data.pitch, -new_imu_data.yaw});
-
+                GyroScope::Vec3{new_imu_data.gx, new_imu_data.gy, new_imu_data.gz},
+                GyroScope::Vec3{new_imu_data.roll, new_imu_data.pitch, new_imu_data.yaw});
             log_csv << ms << ","
                     << std::fixed << std::setprecision(6)
                     << gatt.x << "," << gatt.y << "," << gatt.z << ","

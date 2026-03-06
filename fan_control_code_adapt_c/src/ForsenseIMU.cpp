@@ -166,6 +166,10 @@ namespace ForsenseIMU {
                         currentData.pitch = rawData.pitch;
                         currentData.roll = rawData.roll;
                         currentData.yaw = rawData.yaw;
+                        if (currentData.yaw > 180) {
+                            currentData.yaw -= 360;
+                        }
+                        currentData.yaw = -currentData.yaw;
                         currentData.ax = rawData.ax;
                         currentData.ay = rawData.ay;
                         currentData.az = rawData.az;
