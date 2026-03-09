@@ -189,10 +189,10 @@ bool SystemController::start() {
         std::cout << "[SystemController] System is already running" << std::endl;
         return true;
     }
-    
+
     running_ = true;
     emergency_stop_ = false;
-    
+
     // 启动动捕系统
     const auto& config = ConfigManager::getInstance().getConfig();
     if (Nokov_Start(config.mocap_ip.c_str()) != 0) {
@@ -201,10 +201,15 @@ bool SystemController::start() {
         return false;
     }
     std::cout << "[SystemController] Nokov bridge started" << std::endl;
-    
+
+    // 等待 Nokov SDK 稳定（添加延迟以避免 SDK 线程崩溃）
+    std::cout << "[SystemController] Waiting for Nokov SDK to stabilize..." << std::endl;
+    usleep(1000000); // 等待1秒
+    std::cout << "[SystemController] Nokov SDK stabilized" << std::endl;
+
     // 启动控制线程
     control_thread_ = std::thread(&SystemController::run, this);
-    
+
     std::cout << "[SystemController] System started" << std::endl;
     return true;
 }
@@ -249,17 +254,14 @@ void SystemController::run() {
 
     while (running_ && !emergency_stop_) {
         try {
-            std::cout << "[SystemController] Loop iteration start" << std::endl;
             controlLoopIteration();
-            std::cout << "[SystemController] About to call rateControl" << std::endl;
             rateControl();
-            std::cout << "[SystemController] Loop iteration end" << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "[SystemController] Control loop error: " << e.what() << std::endl;
             // 继续运行，不退出
         } catch (...) {
             std::cerr << "[SystemController] Unknown exception in control loop" << std::endl;
-            throw; // 重新抛出以便看到崩溃信息
+            throw;
         }
     }
 
@@ -280,9 +282,7 @@ void SystemController::controlLoopIteration() {
     control_mode_manager_->update(sensor_data);
 
     // 4. 更新状态发布器
-    std::cout << "[SystemController] Calling status_publisher_->update()" << std::endl;
     status_publisher_->update();
-    std::cout << "[SystemController] status_publisher_->update() completed" << std::endl;
 
     // 5. 记录日志（如果启用）
     if (logging_enabled_ && log_csv_.is_open()) {
@@ -312,27 +312,14 @@ void SystemController::controlLoopIteration() {
 }
 
 void SystemController::rateControl() {
-    std::cout << "[SystemController] rateControl called" << std::endl;
     auto current_time = std::chrono::steady_clock::now();
     auto elapsed = current_time - last_loop_time_;
-
-    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
-    auto period_ms = std::chrono::duration_cast<std::chrono::milliseconds>(loop_period_).count();
-
-    std::cout << "[SystemController] Elapsed: " << elapsed_ms << "ms, Period: " << period_ms << "ms" << std::endl;
 
     auto sleep_time = loop_period_ - elapsed;
 
     if (sleep_time > std::chrono::milliseconds(0)) {
-        try {
-            auto sleep_ms = std::chrono::duration_cast<std::chrono::milliseconds>(sleep_time).count();
-            std::cout << "[SystemController] Sleeping for " << sleep_ms << "ms" << std::endl;
-            // 使用 usleep 替代 sleep_for，可能更稳定
-            usleep(sleep_ms * 1000);
-            std::cout << "[SystemController] Wake up" << std::endl;
-        } catch (const std::exception& e) {
-            std::cerr << "[SystemController] Sleep exception: " << e.what() << std::endl;
-        }
+        auto sleep_ms = std::chrono::duration_cast<std::chrono::milliseconds>(sleep_time).count();
+        usleep(sleep_ms * 1000);
     } else {
         // 循环超时，警告
         auto overtime = -sleep_time;
@@ -344,7 +331,6 @@ void SystemController::rateControl() {
     }
 
     last_loop_time_ = std::chrono::steady_clock::now();
-    std::cout << "[SystemController] rateControl completed" << std::endl;
 }
 
 void SystemController::cleanup() {

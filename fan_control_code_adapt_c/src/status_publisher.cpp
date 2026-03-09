@@ -110,9 +110,6 @@ void StatusPublisher::publishStatus(bool force) {
     message.tail.checksum = checksum;
 
     try {
-        // 发布消息
-        std::cout << "[StatusPublisher] Publishing to topic: " << mqtt_callback_.plane_data_topic << std::endl;
-
         // 使用 vector 作为缓冲区
         std::vector<uint8_t> payload(sizeof(message));
         std::memcpy(payload.data(), &message, sizeof(message));
@@ -127,9 +124,6 @@ void StatusPublisher::publishStatus(bool force) {
 
         // 重置计数器
         send_counter_ = 0;
-
-        // 调试输出
-        std::cout << "[StatusPublisher] Status published successfully" << std::endl;
     } catch (const mqtt::exception& e) {
         std::cerr << "[StatusPublisher] Failed to publish status: " << e.what() << std::endl;
     }
