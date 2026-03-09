@@ -10,6 +10,7 @@
 
 SystemController::SystemController() {
     start_time_ = std::chrono::steady_clock::now();
+    last_loop_time_ = std::chrono::steady_clock::now();
 }
 
 SystemController::~SystemController() {
@@ -307,6 +308,12 @@ void SystemController::rateControl() {
     std::cout << "[SystemController] rateControl called" << std::endl;
     auto current_time = std::chrono::steady_clock::now();
     auto elapsed = current_time - last_loop_time_;
+
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+    auto period_ms = std::chrono::duration_cast<std::chrono::milliseconds>(loop_period_).count();
+
+    std::cout << "[SystemController] Elapsed: " << elapsed_ms << "ms, Period: " << period_ms << "ms" << std::endl;
+
     auto sleep_time = loop_period_ - elapsed;
 
     if (sleep_time > std::chrono::milliseconds(0)) {
@@ -322,6 +329,7 @@ void SystemController::rateControl() {
     }
 
     last_loop_time_ = std::chrono::steady_clock::now();
+    std::cout << "[SystemController] rateControl completed" << std::endl;
 }
 
 void SystemController::cleanup() {
