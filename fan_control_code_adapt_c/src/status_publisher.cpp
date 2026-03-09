@@ -260,6 +260,7 @@ double StatusPublisher::unwrapAngle(double current_angle, double last_angle) {
         delta -= 360.0;
     }
 
+
     // 返回累积角度
     return last_angle + delta;
 }

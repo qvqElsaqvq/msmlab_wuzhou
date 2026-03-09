@@ -173,25 +173,30 @@ bool ControlModeManager::switchToMode(ControlMode mode, const ControlCommand* co
     // 模式特定的初始化
     switch (mode) {
         case ControlMode::BALANCING:
+            // 调平模式需要Fan，确保Fan已启用
+            fan_.setIfPowerOff(false);
             // 退出可能的自动调平/闭环姿态控制状态
             current_balance_status_ = false;
             balancer_.reset_balance();
             attitude_controller_.setIfFinishBalancing(false);
             balancing_in_progress_ = true;
             break;
-            
+
         case ControlMode::DIRECT_TORQUE:
         case ControlMode::VELOCITY_CONTROL:
+        case ControlMode::ATTITUDE_CONTROL:
+            // 这些模式需要Fan，确保Fan已启用
+            fan_.setIfPowerOff(false);
             // 退出可能的自动调平状态
             current_balance_status_ = false;
             balancer_.reset_balance();
             attitude_controller_.setIfFinishBalancing(false);
             break;
-            
+
         case ControlMode::EMERGENCY_STOP:
             emergencyStop();
             break;
-            
+
         default:
             break;
     }
@@ -285,9 +290,10 @@ void ControlModeManager::executeBalancingMode() {
         balancing_in_progress_ = false;
         balancer_.reset_balance();
 
-        // 调平完成后立即发送零力矩，停止旋翼
-        fan_.sendTorque(0, 0, 0);
-        std::cout << "[调平完成] 已发送零力矩，停止旋翼\n";
+        // 调平完成后停止发送力矩指令（掐断与STM32通信）
+        // 方式：设置Fan为power_off状态，这样sendTorque不会发送任何指令
+        fan_.setIfPowerOff(true);
+        std::cout << "[调平完成] 已停止发送力矩指令（掐断STM32通信）\n";
 
         // 调平完成后切换到空闲模式（但只在未关机时）
         if (!power_off_) {

@@ -87,6 +87,14 @@ private:
      */
     void fillStatusData(PlaneData& data);
 
+    /**
+     * @brief 处理角度跳变，保证显示连续性
+     * @param current_angle 当前角度（度）
+     * @param last_angle 上一次的角度（度）
+     * @return 处理后的连续角度
+     */
+    double unwrapAngle(double current_angle, double last_angle);
+
     // MQTT相关
     mqtt::async_client& mqtt_client_;
     CallBack& mqtt_callback_;
