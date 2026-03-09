@@ -7,6 +7,7 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include <unistd.h>
 
 SystemController::SystemController() {
     start_time_ = std::chrono::steady_clock::now();
@@ -326,7 +327,8 @@ void SystemController::rateControl() {
         try {
             auto sleep_ms = std::chrono::duration_cast<std::chrono::milliseconds>(sleep_time).count();
             std::cout << "[SystemController] Sleeping for " << sleep_ms << "ms" << std::endl;
-            std::this_thread::sleep_for(sleep_time);
+            // 使用 usleep 替代 sleep_for，可能更稳定
+            usleep(sleep_ms * 1000);
             std::cout << "[SystemController] Wake up" << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "[SystemController] Sleep exception: " << e.what() << std::endl;
