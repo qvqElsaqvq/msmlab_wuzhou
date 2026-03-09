@@ -207,8 +207,9 @@ void ControlModeManager::cleanupControlState() {
 }
 
 void ControlModeManager::executeIdleMode() {
-    // 空闲模式，不执行任何控制
-    // 可以在这里进行监控或日志记录
+    // 空闲模式：不执行任何控制
+    // 确保所有执行器都被设置为安全状态
+    fan_.sendTorque(0, 0, 0);
 }
 
 void ControlModeManager::executeDirectTorqueMode() {
@@ -231,6 +232,11 @@ void ControlModeManager::executeVelocityControlMode() {
 }
 
 void ControlModeManager::executeBalancingMode() {
+    // 检查是否关机，如果是则不执行调平
+    if (power_off_) {
+        return;
+    }
+
     if (!current_balance_status_) {
         std::cout << "执行自动调平算法...\n";
         const auto& config = ConfigManager::getInstance().getConfig();
@@ -240,19 +246,21 @@ void ControlModeManager::executeBalancingMode() {
                   << config.lead_screw_z_init_pos << std::endl;
         current_balance_status_ = true;
     }
-    
+
     balancer_.balance_axes();
     if_finish_balancing_ = balancer_.getIfFinishBalancing();
     attitude_controller_.setIfFinishBalancing(if_finish_balancing_);
-    
+
     if (if_finish_balancing_) {
         mqtt_callback_.setFlagBalance(true);
         current_balance_status_ = false;
         balancing_in_progress_ = false;
         balancer_.reset_balance();
-        
-        // 调平完成后切换到空闲模式
-        switchToMode(ControlMode::IDLE);
+
+        // 调平完成后切换到空闲模式（但只在未关机时）
+        if (!power_off_) {
+            switchToMode(ControlMode::IDLE);
+        }
     }
 }
 
@@ -308,15 +316,20 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
         
         const auto& config = ConfigManager::getInstance().getConfig();
         auto gatt = sensor_data.gyro.attitude;
-        if (fabs(gatt.x() - target_attitude_.roll) < config.angle_tolerance_deg and 
+        if (fabs(gatt.x() - target_attitude_.roll) < config.angle_tolerance_deg and
             fabs(gatt.y() - target_attitude_.pitch) < config.angle_tolerance_deg and
             fabs(gatt.z() - target_attitude_.yaw) < config.yaw_tolerance_deg) {
             attitude_controller_.setIfFinishBalancing(true);
         }
-        
-        std::cout << "[Target Converted M->G] roll=" << target_attitude_.roll
-                  << ", pitch=" << target_attitude_.pitch
-                  << ", yaw=" << target_attitude_.yaw << std::endl;
+
+        // 降低日志输出频率（每1秒输出一次）
+        static int log_counter = 0;
+        if (++log_counter >= 50) { // 50Hz * 1秒 = 50次
+            std::cout << "[Target Converted M->G] roll=" << target_attitude_.roll
+                      << ", pitch=" << target_attitude_.pitch
+                      << ", yaw=" << target_attitude_.yaw << std::endl;
+            log_counter = 0;
+        }
     } else {
         // 没有动捕数据，使用直接目标
         target_attitude_.roll = current_command_.attitude.roll;
