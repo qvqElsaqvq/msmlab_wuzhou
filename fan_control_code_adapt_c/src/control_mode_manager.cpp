@@ -34,6 +34,14 @@ ControlMode ControlModeManager::update(const SensorData& sensor_data) {
     wheel_.setIfPowerOff(power_off_);
     leadscrew_.setIfPowerOff(power_off_);
     
+    // 如果关机，切换到空闲模式并跳过控制执行
+    if (power_off_) {
+        if (current_mode_ != ControlMode::IDLE) {
+            switchToMode(ControlMode::IDLE, nullptr);
+        }
+        return current_mode_;
+    }
+    
     // 根据当前模式执行控制
     switch (current_mode_) {
         case ControlMode::IDLE:
