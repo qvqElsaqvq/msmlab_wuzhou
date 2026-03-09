@@ -330,11 +330,14 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
         // 2) 当前：动捕当前 -> 转欧拉 -> pitch 反号 -> 再转四元数
         Eigen::Quaterniond qM_raw = sensor_data.mocap.quaternion;
         qM_raw.normalize();
-        
+
+        // 保存原始动捕当前姿态用于显示
+        Eigen::Vector3d current_mocap_raw = gyro_util::eulerZYX_degFromQuat(qM_raw); // [roll,pitch,yaw]
+
         // 用统一的欧拉提取（ZYX, deg）
         Eigen::Vector3d rpyM = gyro_util::eulerZYX_degFromQuat(qM_raw); // [roll,pitch,yaw]
         rpyM.y() = -rpyM.y(); // ✅ 关键：pitch 反号
-        
+
         Eigen::Quaterniond qM =
             gyro_util::quatFromEulerZYX_deg(rpyM.x(), rpyM.y(), rpyM.z());
         
@@ -363,20 +366,21 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
             attitude_controller_.setIfFinishBalancing(true);
         }
 
-        // 降低日志输出频率（每1秒输出一次）
+        // 降低日志输出频率（每3秒输出一次）
         static int log_counter = 0;
-        if (++log_counter >= 50) { // 50Hz * 1秒 = 50次
-            // 显示用户设定的目标姿态和当前实际姿态
+        if (++log_counter >= 150) { // 50Hz * 3秒 = 150次
+            // 显示用户设定的目标姿态（动捕系）
             std::cout << "[姿态控制] 目标(动捕系): roll=" << current_command_.attitude.roll
                       << ", pitch=" << current_command_.attitude.pitch
                       << ", yaw=" << current_command_.attitude.yaw << std::endl;
-            // 显示当前陀螺姿态和目标陀螺姿态
-            std::cout << "[姿态控制] 当前(陀螺): roll=" << gatt.x()
+            // 显示当前动捕姿态
+            std::cout << "[姿态控制] 当前(动捕系): roll=" << current_mocap_raw.x()
+                      << ", pitch=" << current_mocap_raw.y()
+                      << ", yaw=" << current_mocap_raw.z() << std::endl;
+            // 显示当前陀螺姿态
+            std::cout << "[姿态控制] 当前(陀螺系): roll=" << gatt.x()
                       << ", pitch=" << gatt.y()
                       << ", yaw=" << gatt.z() << std::endl;
-            std::cout << "[姿态控制] 目标(陀螺): roll=" << target_attitude_.roll
-                      << ", pitch=" << target_attitude_.pitch
-                      << ", yaw=" << target_attitude_.yaw << std::endl;
             log_counter = 0;
         }
     } else {
