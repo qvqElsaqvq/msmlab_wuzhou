@@ -107,7 +107,6 @@ void ControlModeManager::processMqttCommands() {
     
     // 3) 自动调平
     if (mqtt_callback_.getIfNeedBalancing()) {
-        std::cout << "[ControlModeManager] 收到调平指令，当前power_off=" << power_off_ << std::endl;
         // 重置调平完成标志，允许重新调平
         mqtt_callback_.setFlagBalance(false);
         ControlCommand cmd;
