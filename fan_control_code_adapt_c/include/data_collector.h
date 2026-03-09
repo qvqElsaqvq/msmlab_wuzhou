@@ -57,7 +57,7 @@ public:
     /**
      * @brief 析构函数
      */
-    ~DataCollector();
+    ~DataCollector() = default;
 
     /**
      * @brief 初始化数据采集器
