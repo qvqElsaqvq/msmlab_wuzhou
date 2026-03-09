@@ -37,8 +37,24 @@ ControlMode ControlModeManager::update(const SensorData& sensor_data) {
     bool fan_should_off = power_off_ || fan_power_off_after_balance_;
     fan_.setIfPowerOff(fan_should_off);
 
-    // 调试输出（仅当状态改变时）
+    // 调试输出（每次都输出，方便调试）
     static bool last_fan_off = false;
+    static bool initialized = false;
+    if (!initialized) {
+        last_fan_off = fan_should_off;  // 初始化时同步状态
+        initialized = true;
+        std::cout << "[ControlModeManager] Fan电源状态初始化: " << (fan_should_off ? "关闭" : "开启")
+                  << " (power_off_=" << power_off_ << ", fan_power_off_after_balance_=" << fan_power_off_after_balance_ << ")" << std::endl;
+    }
+
+    // 每次都输出详细信息（方便调试）
+    static int debug_counter = 0;
+    if (++debug_counter >= 150) {  // 每3秒输出一次
+        std::cout << "[ControlModeManager] Fan电源状态: " << (fan_should_off ? "关闭" : "开启")
+                  << " (power_off_=" << power_off_ << ", fan_power_off_after_balance_=" << fan_power_off_after_balance_ << ", last_fan_off=" << last_fan_off << ")" << std::endl;
+        debug_counter = 0;
+    }
+
     if (fan_should_off != last_fan_off) {
         std::cout << "[ControlModeManager] Fan电源状态变更: " << (fan_should_off ? "关闭" : "开启")
                   << " (power_off_=" << power_off_ << ", fan_power_off_after_balance_=" << fan_power_off_after_balance_ << ")" << std::endl;
@@ -198,6 +214,7 @@ bool ControlModeManager::switchToMode(ControlMode mode, const ControlCommand* co
         case ControlMode::DIRECT_TORQUE:
         case ControlMode::VELOCITY_CONTROL:
         case ControlMode::ATTITUDE_CONTROL:
+        case ControlMode::DOCKING:
             // 这些模式需要Fan，确保Fan已启用
             fan_power_off_after_balance_ = false;
             fan_.setIfPowerOff(false);
@@ -281,9 +298,9 @@ void ControlModeManager::executeBalancingMode() {
     // 获取质量块位置
     const auto& mass_positions = leadscrew_.getCurrentPositions();
 
-    // 统一输出调平状态（每1秒输出一次）
+    // 统一输出调平状态（每3秒输出一次）
     static int balance_log_counter = 0;
-    if (++balance_log_counter >= 50) {
+    if (++balance_log_counter >= 150) { // 50Hz * 3秒 = 150次
         // 输出实时状态
         std::cout << "[" << stage_status.stage_name << "] "
                   << stage_status.state << " | "
