@@ -358,8 +358,16 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         }
         else
         {
+            // 之前完成过调平，需要balance_reset和balance_set同时为true才能重新调平
             if(balance_->data.balance_reset && balance_->data.balance_set)
                 if_need_balancing_ = true;
+            else if(balance_->data.balance_set && !balance_->data.balance_reset)
+            {
+                // 只有balance_set，没有balance_reset，不允许重新调平
+                // 但为了支持姿态控制后直接调平，我们强制允许
+                if_need_balancing_ = true;
+                flag_balance_ = false; // 重置标志，允许调平
+            }
             else
                 if_need_balancing_ = false;
         }
