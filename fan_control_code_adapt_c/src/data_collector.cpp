@@ -13,23 +13,14 @@ DataCollector::DataCollector(GyroScope& gyro, msmserial::MsMSerial& serial)
     , last_update_time_(std::chrono::steady_clock::now()) {
 }
 
-DataCollector::~DataCollector() {
-    Nokov_Stop();
-}
-
 bool DataCollector::initialize() {
-    // 初始化动捕系统
     const auto& config = ConfigManager::getInstance().getConfig();
-    
-    if (Nokov_Start(config.mocap_ip.c_str()) != 0) {
-        std::cerr << "[DataCollector] Failed to start Nokov bridge" << std::endl;
-        return false;
-    }
-    std::cout << "[DataCollector] Nokov bridge started" << std::endl;
 
     // 初始化IMU
-    ForsenseIMU::InitSerial(config.imu_serial_port);
+    ForsenseIMU::InitSerial(config.imu_serial_port.c_str());
     std::cout << "[DataCollector] IMU initialized" << std::endl;
+
+    // Nokov 已在 SystemController::start() 中启动，这里不需要重复启动
 
     return true;
 }
