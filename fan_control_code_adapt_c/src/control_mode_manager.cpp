@@ -27,13 +27,23 @@ ControlModeManager::ControlModeManager(CallBack& mqtt_callback,
 ControlMode ControlModeManager::update(const SensorData& sensor_data) {
     // 处理MQTT命令
     processMqttCommands();
-    
+
     // 更新电源状态
     power_off_ = mqtt_callback_.getIfPowerOff();
-    fan_.setIfPowerOff(power_off_);
     wheel_.setIfPowerOff(power_off_);
     leadscrew_.setIfPowerOff(power_off_);
-    
+
+    // Fan电源状态：关机或调平完成后都应停止
+    bool fan_should_off = power_off_ || fan_power_off_after_balance_;
+    fan_.setIfPowerOff(fan_should_off);
+
+    // 调试输出（仅当状态改变时）
+    static bool last_fan_off = false;
+    if (fan_should_off != last_fan_off) {
+        std::cout << "[ControlModeManager] Fan电源状态变更: " << (fan_should_off ? "关闭" : "开启")
+                  << " (power_off_=" << power_off_ << ", fan_power_off_after_balance_=" << fan_power_off_after_balance_ << ")" << std::endl;
+        last_fan_off = fan_should_off;
+    }
     // 如果关机，切换到空闲模式并跳过控制执行
     if (power_off_) {
         if (current_mode_ != ControlMode::IDLE) {
@@ -176,6 +186,7 @@ bool ControlModeManager::switchToMode(ControlMode mode, const ControlCommand* co
     switch (mode) {
         case ControlMode::BALANCING:
             // 调平模式需要Fan，确保Fan已启用
+            fan_power_off_after_balance_ = false;
             fan_.setIfPowerOff(false);
             // 退出可能的自动调平/闭环姿态控制状态
             current_balance_status_ = false;
@@ -188,6 +199,7 @@ bool ControlModeManager::switchToMode(ControlMode mode, const ControlCommand* co
         case ControlMode::VELOCITY_CONTROL:
         case ControlMode::ATTITUDE_CONTROL:
             // 这些模式需要Fan，确保Fan已启用
+            fan_power_off_after_balance_ = false;
             fan_.setIfPowerOff(false);
             // 退出可能的自动调平状态
             current_balance_status_ = false;
@@ -303,7 +315,8 @@ void ControlModeManager::executeBalancingMode() {
         balancer_.reset_balance();
 
         // 调平完成后停止发送力矩指令（掐断与STM32通信）
-        // 方式：设置Fan为power_off状态，这样sendTorque不会发送任何指令
+        // 方式：设置fan_power_off_after_balance_标志，update函数会据此停止通信
+        fan_power_off_after_balance_ = true;
         fan_.setIfPowerOff(true);
         std::cout << "[调平完成] 已停止发送力矩指令（掐断STM32通信）\n";
 

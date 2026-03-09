@@ -194,6 +194,7 @@ private:
     bool current_balance_status_ = false;
     bool if_finish_balancing_ = false;
     bool power_off_ = false;
+    bool fan_power_off_after_balance_ = false;  // 调平完成后停止旋翼
 
     // 目标姿态（用于姿态控制）
     struct Attitude target_attitude_ {0.0, 0.0, 0.0};
