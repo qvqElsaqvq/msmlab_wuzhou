@@ -311,9 +311,9 @@ void SystemController::rateControl() {
     } else {
         // 循环超时，警告
         auto overtime = -sleep_time;
-        if (overture > std::chrono::milliseconds(5)) {
-            std::cerr << "[SystemController] Control loop overtime: " 
-                      << std::chrono::duration_cast<std::chrono::microseconds>(overture).count() 
+        if (overtime > std::chrono::milliseconds(5)) {
+            std::cerr << "[SystemController] Control loop overtime: "
+                      << std::chrono::duration_cast<std::chrono::microseconds>(overtime).count()
                       << "us" << std::endl;
         }
     }

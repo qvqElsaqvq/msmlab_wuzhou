@@ -14,9 +14,7 @@ DataCollector::DataCollector(GyroScope& gyro, msmserial::MsMSerial& serial)
 }
 
 DataCollector::~DataCollector() {
-    if (nokov_bridge_) {
-        Nokov_Stop();
-    }
+    Nokov_Stop();
 }
 
 bool DataCollector::initialize() {

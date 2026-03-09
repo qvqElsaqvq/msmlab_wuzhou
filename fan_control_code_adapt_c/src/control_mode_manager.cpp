@@ -226,9 +226,9 @@ void ControlModeManager::executeBalancingMode() {
     if (!current_balance_status_) {
         std::cout << "执行自动调平算法...\n";
         const auto& config = ConfigManager::getInstance().getConfig();
-        std::vector<int16_t> action{config.lead_screw_z_init_pos};
+        std::vector<int16_t> action{static_cast<int16_t>(config.lead_screw_z_init_pos)};
         leadscrew_.moveTo(action); // 先降 Z 轴质量块
-        std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 " 
+        std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 "
                   << config.lead_screw_z_init_pos << std::endl;
         current_balance_status_ = true;
     }

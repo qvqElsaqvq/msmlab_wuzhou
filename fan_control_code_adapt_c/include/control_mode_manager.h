@@ -17,6 +17,9 @@
 #include "docker.h"
 #include "MQTT_server.h"
 
+// 前向声明SensorData
+struct SensorData;
+
 /**
  * @brief 控制模式枚举
  */

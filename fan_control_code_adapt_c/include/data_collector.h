@@ -138,9 +138,6 @@ private:
     // 传感器数据
     SensorData sensor_data_;
 
-    // 动捕桥接
-    std::unique_ptr<NokovBridge> nokov_bridge_;
-
     // 统计信息
     std::chrono::steady_clock::time_point last_update_time_;
     int update_count_ = 0;
