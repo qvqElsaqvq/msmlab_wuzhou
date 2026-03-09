@@ -4,8 +4,10 @@
 
 #include "status_publisher.h"
 #include "config_manager.h"
+#include "Utility.h"
 #include <iostream>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 
 StatusPublisher::StatusPublisher(mqtt::async_client& mqtt_client,
@@ -23,7 +25,10 @@ StatusPublisher::StatusPublisher(mqtt::async_client& mqtt_client,
     , attitude_controller_(attitude_controller)
     , balancer_(balancer)
     , fan_(fan)
-    , wheel_(wheel) {
+    , wheel_(wheel)
+    , last_mocap_roll_(0.0)
+    , last_mocap_pitch_(0.0)
+    , last_mocap_yaw_(0.0) {
 }
 
 void StatusPublisher::initialize() {
@@ -53,9 +58,19 @@ void StatusPublisher::collectSystemStatus() {
 
     // 更新姿态和角速度：优先使用动捕数据，否则使用陀螺仪数据
     if (sensor_data.mocap.valid) {
-        current_status_.attitude.roll = sensor_data.mocap.euler_angles.x();
-        current_status_.attitude.pitch = sensor_data.mocap.euler_angles.y();
-        current_status_.attitude.yaw = sensor_data.mocap.euler_angles.z();
+        // 处理动捕数据的角度跳变，保证显示连续性
+        double mocap_roll = sensor_data.mocap.euler_angles.x();
+        double mocap_pitch = sensor_data.mocap.euler_angles.y();
+        double mocap_yaw = sensor_data.mocap.euler_angles.z();
+
+        current_status_.attitude.roll = unwrapAngle(mocap_roll, last_mocap_roll_);
+        current_status_.attitude.pitch = unwrapAngle(mocap_pitch, last_mocap_pitch_);
+        current_status_.attitude.yaw = unwrapAngle(mocap_yaw, last_mocap_yaw_);
+
+        // 更新上一次的动捕角度值
+        last_mocap_roll_ = mocap_roll;
+        last_mocap_pitch_ = mocap_pitch;
+        last_mocap_yaw_ = mocap_yaw;
     } else {
         current_status_.attitude.roll = sensor_data.gyro.attitude.x();
         current_status_.attitude.pitch = sensor_data.gyro.attitude.y();
@@ -65,33 +80,33 @@ void StatusPublisher::collectSystemStatus() {
     current_status_.angular_velocity.wx = sensor_data.gyro.angular_velocity.x();
     current_status_.angular_velocity.wy = sensor_data.gyro.angular_velocity.y();
     current_status_.angular_velocity.wz = sensor_data.gyro.angular_velocity.z();
-    
+
     // 获取动量轮状态
     auto wheel_status = wheel_.getStatus();
     current_status_.wheel.dir = wheel_status.dir;
     current_status_.wheel.speed = wheel_status.speed;
     current_status_.wheel.current = 0; // 暂时设为0，实际应从硬件读取
-    
+
     // 获取力矩数据
     auto torque = attitude_controller_.getTorque();
     current_status_.torque.roll = torque.x();
     current_status_.torque.pitch = torque.y();
     current_status_.torque.yaw = torque.z();
-    
+
     // 更新系统标志
     current_status_.flags.power_off = mqtt_callback_.getIfPowerOff();
-    
+
     // 获取调平状态
     current_status_.flags.balance_flag = balancer_.getIfFinishBalancing();
     current_status_.flags.balance_set = balancer_.getIfInBalancing();
-    
+
     // 设置其他标志（暂时硬编码）
     current_status_.flags.gyro_fault = false;
     current_status_.flags.wheel_fault = false;
     current_status_.flags.fan_calibration_flag = false;
     current_status_.flags.fan_calibration_set = false;
     current_status_.flags.traj_ready = true;
-    
+
     // 设置平台状态
     if (current_status_.flags.power_off) {
         current_status_.platform_status = 0x00; // 停机
@@ -226,6 +241,27 @@ uint8_t StatusPublisher::calculateChecksum(const uint8_t* data, size_t length) c
         checksum ^= data[i];
     }
     return checksum;
+}
+
+double StatusPublisher::unwrapAngle(double current_angle, double last_angle) {
+    // 计算角度差
+    double delta = current_angle - last_angle;
+
+    // 如果角度差超过180度，说明发生了跳变
+    // 如果从179度跳到-179度，delta = -358度，但实际只变化了2度
+    // 我们需要通过加减360度来修正这个跳变
+
+    // 处理正向跳变（从接近180度跳到接近-180度）
+    if (delta < -180.0) {
+        delta += 360.0;
+    }
+    // 处理负向跳变（从接近-180度跳到接近180度）
+    else if (delta > 180.0) {
+        delta -= 360.0;
+    }
+
+    // 返回累积角度
+    return last_angle + delta;
 }
 
 int StatusPublisher::getSendCounter() const {

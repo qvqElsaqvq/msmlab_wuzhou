@@ -110,11 +110,11 @@ void MassCenterBalancer::balance_both_axes_fan() {
         wait_steady_and_sample_outputs();
 
         if (if_end_sampling_) {
-            std::cout << "稳态平均输出: Tx≈" << tx_mean_ << " Ty≈" << ty_mean_ << std::endl;
+            std::cout << "[调平] 采样完成 - 平均力矩: Tx=" << tx_mean_ << " Ty=" << ty_mean_ << std::endl;
 
             // 2. 终止判据
             if (std::abs(tx_mean_) <= torque_done && std::abs(ty_mean_) <= torque_done) {
-                std::cout << "XY 调平完成" << std::endl;
+                std::cout << "[调平-XY轴] XY调平完成" << std::endl;
                 flag_y_ = true;
                 flag_x_ = true;
                 is_balancing_z_ = true;
@@ -164,8 +164,7 @@ void MassCenterBalancer::balance_both_axes_fan() {
             prev_dir_y = dir_y;
 
             leadscrew_.moveTo(steps);
-            std::cout << "[FAN-XY] 发送 x 轴移动指令，位置改变: " << std::dec << steps[0] << std::endl;
-            std::cout << "[FAN-XY] 发送 y 轴移动指令，位置改变: " << std::dec << steps[1] << std::endl;
+            // 质量块移动由 ControlModeManager 统一输出，这里不重复输出
             if_in_steady_state_ = false;
             waiting_after_moving_ = true;
             waiting_t_enter_ = clock();
@@ -271,10 +270,10 @@ void MassCenterBalancer::balance_z_axes_fan() {
                 if (!if_15_ok_) {
                     if_15_ok_ = true;
                     if_finish_testing_ty_ = false;
-                    std::cout << "[FAN-Z] 在 15° 调平完成" << std::endl;
+                    std::cout << "[调平-Z轴] 15度调平完成" << std::endl;
                     z_target_angle_ = 25.0;
 
-                    std::cout << "+++++++++++++++++角度调整：25°, 等待中+++++++++++++++++" << std::endl;
+                    std::cout << "[调平-Z轴] 姿态调整中，等待稳定..." << std::endl;
                     if_in_z_changing_attitude = true;
                     z_change_attitude_sleep_cnt = 0;
                     z_change_attitude_sleep_time = 25;
@@ -285,10 +284,10 @@ void MassCenterBalancer::balance_z_axes_fan() {
                 } else if (!if_20_ok_) { // 已废弃20° 调平
                     if_20_ok_ = true;
                     if_finish_testing_ty_ = false;
-                    std::cout << "[FAN-Z] 在 20° 调平完成" << std::endl;
+                    std::cout << "[调平-Z轴] 20度调平完成" << std::endl;
                     z_target_angle_ = 25.0;
 
-                    std::cout << "+++++++++++++++++角度调整 25° 等待中+++++++++++++++++" << std::endl;
+                    std::cout << "[调平-Z轴] 姿态调整中，等待稳定..." << std::endl;
                     if_in_z_changing_attitude = true;
                     z_change_attitude_sleep_cnt = 0;
                     z_change_attitude_sleep_time = 20;
@@ -299,8 +298,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
                     if_finish_balancing_ = true;
                     if_set_balancing_ = false;
                     pitch_metric_finish_ = true;
-                    // std::cout << "[FAN-Z] 在 30° 调平完成" << std::endl;
-                    std::cout << "[FAN-Z] Z 轴调平完成！ if_finish_balancing= " << if_finish_balancing_ << std::endl;
+                    std::cout << "[调平-Z轴] Z轴调平完成！" << std::endl;
                     return;
                 }
             }
@@ -355,7 +353,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
         if (waiting_after_moving_) {
             if ((clock() - waiting_t_enter_) / CLOCKS_PER_SEC * 20 >= waiting_time_) {
                 waiting_after_moving_ = false;
-                std::cout << "调后等待时间结束" << std::endl;
+                std::cout << "[调平] 稳定等待结束，开始检测" << std::endl;
                 t_enter_ = -1;
             } else
                 return;
@@ -389,12 +387,12 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                     z_err_angle_.clear();
                     z_err_angle_t_enter_ = -1;
                     t_enter_ = clock();
-                    std::cout << "`````````````````开始稳态计时``````````````````" << std::endl;
+                    std::cout << "[调平] 检测到稳态，开始计时" << std::endl;
                 }
                 if ((clock() - t_enter_) / CLOCKS_PER_SEC * 20 >= dwell_time_) {
                     if_in_steady_state_ = true;
                     if_begin_sampling_ = true;
-                    std::cout << "----------------XY进入稳态--------------" << std::endl;
+                    std::cout << "[调平] 稳态确认，开始采样力矩" << std::endl;
                 }
             } else {
                 t_enter_ = -1;
@@ -410,7 +408,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                         z_err_angle_.clear();
                     }
                     if (z_err_angle_t_enter_ != -1) {
-                        std::cout << "z_err_angle: "<< z_target_angle_ - pitch << std::endl;
+                        // std::cout << "z_err_angle: "<< z_target_angle_ - pitch << std::endl;
                         z_err_angle_.push_back(z_target_angle_ - pitch);
                         if ((clock() - z_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= z_err_angle_t_threshold_) {
                             if (z_err_angle_.size() > 0) {
@@ -431,7 +429,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                                 leadscrew_.moveTo(action);
                                 waiting_after_moving_ = true;
                                 waiting_t_enter_ = clock();
-                                std::cout << "[Z] 与目标角度误差较大，移动质量块: " << std::dec << step << std::endl;
+                                std::cout << "[调平-Z轴] 角度修正，移动质量块: " << std::dec << step << std::endl;
                             }
                             z_err_angle_.clear();
                             z_err_angle_t_enter_ = -1;
@@ -445,7 +443,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                         x_err_angle_.clear();
                     }
                     if (x_err_angle_t_enter_ != -1) {
-                        std::cout << "x_err_angle: " << std::dec << x_target_angle_ - roll << std::endl;
+                        // std::cout << "x_err_angle: " << std::dec << x_target_angle_ - roll << std::endl;
                         x_err_angle_.push_back(x_target_angle_ - roll);
                         if ((clock() - x_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= x_err_angle_t_threshold_) {
                             if (x_err_angle_.size() > 0)
@@ -462,7 +460,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
 
                                 waiting_after_moving_ = true;
                                 waiting_t_enter_ = clock();
-                                std::cout << "[X] 与目标角度误差较大，移动质量块: " << std::dec << int(-1500 * x_err_angle_mean_) <<
+                                std::cout << "[调平-X轴] 角度修正，移动质量块: " << std::dec << int(-1500 * x_err_angle_mean_) <<
                                         std::endl;
                             }
                             x_err_angle_.clear();
@@ -475,7 +473,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                         y_err_angle_.clear();
                     }
                     if (y_err_angle_t_enter_ != -1) {
-                        std::cout << "y_err_angle: " << std::dec << y_target_angle_ - pitch << std::endl;
+                        // std::cout << "y_err_angle: " << std::dec << y_target_angle_ - pitch << std::endl;
                         y_err_angle_.push_back(y_target_angle_ - pitch);
                         if ((clock() - y_err_angle_t_enter_) / CLOCKS_PER_SEC * 20 >= y_err_angle_t_threshold_) {
                             if (y_err_angle_.size() > 0)
@@ -492,7 +490,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
 
                                 waiting_after_moving_ = true;
                                 waiting_t_enter_ = clock();
-                                std::cout << "[Y] 与目标角度误差较大，移动质量块: " << std::dec << int(1500 * y_err_angle_mean_) <<
+                                std::cout << "[调平-Y轴] 角度修正，移动质量块: " << std::dec << int(1500 * y_err_angle_mean_) <<
                                         std::endl;
                             }
                             y_err_angle_.clear();
@@ -512,7 +510,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
         xs_.clear();
         ys_.clear();
         if_begin_sampling_ = false;
-        std::cout << ">>>>>>>>>>>>开始Tx,Ty采样<<<<<<<<<<<" << std::endl;
+        std::cout << "[调平] 开始采样平均力矩" << std::endl;
     }
     // 稳态采样控制输出（平均值）
     if (if_in_steady_state_) {

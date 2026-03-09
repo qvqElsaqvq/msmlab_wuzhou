@@ -285,6 +285,10 @@ void ControlModeManager::executeBalancingMode() {
         balancing_in_progress_ = false;
         balancer_.reset_balance();
 
+        // 调平完成后立即发送零力矩，停止旋翼
+        fan_.sendTorque(0, 0, 0);
+        std::cout << "[调平完成] 已发送零力矩，停止旋翼\n";
+
         // 调平完成后切换到空闲模式（但只在未关机时）
         if (!power_off_) {
             switchToMode(ControlMode::IDLE);

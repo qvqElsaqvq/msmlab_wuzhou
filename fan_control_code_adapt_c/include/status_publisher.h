@@ -160,9 +160,14 @@ private:
         uint8_t platform_status = 0x01;         // 平台状态
         int16_t payload_mass = 0;               // 承载质量
         int16_t thrust_x = 0;                   // X方向推力
-        int16_t thrust_y = 0;                   // Y方向推力
-        int16_t thrust_z = 0;                   // Z方向推力
+    int16_t thrust_y = 0;                   // Y方向推力
+    int16_t thrust_z = 0;                   // Z方向推力
     } current_status_;
+
+    // 动捕角度连续性处理（记录上一次的动捕角度值）
+    double last_mocap_roll_ = 0.0;
+    double last_mocap_pitch_ = 0.0;
+    double last_mocap_yaw_ = 0.0;
 
     // 发送控制
     std::atomic<int> send_counter_{0};
