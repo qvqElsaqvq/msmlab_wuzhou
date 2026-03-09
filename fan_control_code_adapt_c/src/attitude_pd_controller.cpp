@@ -172,6 +172,12 @@ Vec3 AttitudePDController::getTorque()
     return current_torque;
 }
 
+Vec3 AttitudePDController::getCurrentGyroAttitude()
+{
+    auto at = gyro_.getAttitude();
+    return Vec3(at.x, at.y, at.z);
+}
+
 void AttitudePDController::setIfFinishBalancing(bool if_finish_balancing)
 {
     if_finish_balancing_ = if_finish_balancing;

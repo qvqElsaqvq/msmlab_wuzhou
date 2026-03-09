@@ -50,12 +50,18 @@ void StatusPublisher::update() {
 void StatusPublisher::collectSystemStatus() {
     // 获取传感器数据
     auto sensor_data = data_collector_.getSensorData();
-    
-    // 更新姿态和角速度
-    current_status_.attitude.roll = sensor_data.gyro.attitude.x();
-    current_status_.attitude.pitch = sensor_data.gyro.attitude.y();
-    current_status_.attitude.yaw = sensor_data.gyro.attitude.z();
-    
+
+    // 更新姿态和角速度：优先使用动捕数据，否则使用陀螺仪数据
+    if (sensor_data.mocap.valid) {
+        current_status_.attitude.roll = sensor_data.mocap.euler_angles.x();
+        current_status_.attitude.pitch = sensor_data.mocap.euler_angles.y();
+        current_status_.attitude.yaw = sensor_data.mocap.euler_angles.z();
+    } else {
+        current_status_.attitude.roll = sensor_data.gyro.attitude.x();
+        current_status_.attitude.pitch = sensor_data.gyro.attitude.y();
+        current_status_.attitude.yaw = sensor_data.gyro.attitude.z();
+    }
+
     current_status_.angular_velocity.wx = sensor_data.gyro.angular_velocity.x();
     current_status_.angular_velocity.wy = sensor_data.gyro.angular_velocity.y();
     current_status_.angular_velocity.wz = sensor_data.gyro.angular_velocity.z();

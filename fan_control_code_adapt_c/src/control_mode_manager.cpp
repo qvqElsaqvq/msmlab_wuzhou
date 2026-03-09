@@ -238,20 +238,48 @@ void ControlModeManager::executeBalancingMode() {
     }
 
     if (!current_balance_status_) {
-        std::cout << "执行自动调平算法...\n";
+        std::cout << "=================== 自动调平开始 ===================\n";
         const auto& config = ConfigManager::getInstance().getConfig();
         std::vector<int16_t> action{static_cast<int16_t>(config.lead_screw_z_init_pos)};
         leadscrew_.moveTo(action); // 先降 Z 轴质量块
-        std::cout << "[FAN-Z] 发送 Z 轴移动指令，位置改变 "
-                  << config.lead_screw_z_init_pos << std::endl;
+        std::cout << "[调平阶段1] Z轴质量块移动到位置: " << config.lead_screw_z_init_pos << std::endl;
         current_balance_status_ = true;
+        balancing_in_progress_ = true;
     }
 
+    // 执行调平
     balancer_.balance_axes();
     if_finish_balancing_ = balancer_.getIfFinishBalancing();
     attitude_controller_.setIfFinishBalancing(if_finish_balancing_);
 
+    // 获取当前力矩和陀螺姿态
+    auto current_torque = attitude_controller_.getTorque();
+    auto current_attitude = attitude_controller_.getCurrentGyroAttitude();
+
+    // 获取质量块位置
+    const auto& mass_positions = leadscrew_.getCurrentPositions();
+
+    // 降低调平日志输出频率（每1秒输出一次）
+    static int balance_log_counter = 0;
+    if (++balance_log_counter >= 50) {
+        std::cout << "[调平进行中] 姿态(roll/pitch/yaw): (" << current_attitude.x() << ", "
+                  << current_attitude.y() << ", " << current_attitude.z() << ") | "
+                  << "力矩(Tx/Ty/Tz): (" << current_torque.x() << ", "
+                  << current_torque.y() << ", " << current_torque.z() << ") | "
+                  << "质量块位置(X/Y/Z): (" << mass_positions[0] << ", "
+                  << mass_positions[1] << ", " << mass_positions[2] << ") | "
+                  << "调平状态: " << (if_finish_balancing_ ? "已完成" : "进行中") << std::endl;
+        balance_log_counter = 0;
+    }
+
     if (if_finish_balancing_) {
+        std::cout << "[调平完成] 自动调平算法执行完成\n";
+        std::cout << "[调平完成] 最终姿态(roll/pitch/yaw): (" << current_attitude.x() << ", "
+                  << current_attitude.y() << ", " << current_attitude.z() << ")\n";
+        std::cout << "[调平完成] 最终力矩(Tx/Ty/Tz): (" << current_torque.x() << ", "
+                  << current_torque.y() << ", " << current_torque.z() << ")\n";
+        std::cout << "[调平完成] 最终质量块位置(X/Y/Z): (" << mass_positions[0] << ", "
+                  << mass_positions[1] << ", " << mass_positions[2] << ")\n";
         mqtt_callback_.setFlagBalance(true);
         current_balance_status_ = false;
         balancing_in_progress_ = false;

@@ -74,6 +74,9 @@ public:
     /// 供外部读取当前扭矩
     Vec3 getTorque();
 
+    /// 供外部读取当前陀螺姿态（度）
+    Vec3 getCurrentGyroAttitude();
+
     /// 记录是否已经调平完成
     void setIfFinishBalancing(bool if_finish_balancing);
 };
