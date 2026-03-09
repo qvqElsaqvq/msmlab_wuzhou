@@ -19,7 +19,8 @@
 struct SensorData {
     // 陀螺仪数据
     struct GyroData {
-        Eigen::Vector3d attitude;      // roll, pitch, yaw (deg)
+        Eigen::Vector3d attitude;      // roll, pitch, yaw (deg) - 可能被动捕覆盖
+        Eigen::Vector3d raw_attitude; // roll, pitch, yaw (deg) - 原始陀螺仪数据，不被覆盖
         Eigen::Vector3d angular_velocity; // wx, wy, wz (deg/s)
         Eigen::Quaterniond quaternion; // 四元数
     } gyro;
@@ -84,6 +85,11 @@ public:
      * @brief 获取原始传感器数据
      */
     const SensorData& getSensorData() const;
+
+    /**
+     * @brief 获取原始陀螺仪姿态（不被动捕覆盖）
+     */
+    Eigen::Vector3d getRawGyroAttitude() const;
 
     /**
      * @brief 获取动捕数据是否有效

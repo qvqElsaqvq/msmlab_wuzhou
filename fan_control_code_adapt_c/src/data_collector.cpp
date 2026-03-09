@@ -58,6 +58,7 @@ void DataCollector::updateGyroData() {
         auto quat = gyro_.getQuaternion();
         
         sensor_data_.gyro.attitude = Eigen::Vector3d(att.x, att.y, att.z);
+        sensor_data_.gyro.raw_attitude = Eigen::Vector3d(att.x, att.y, att.z); // 保存原始值
         sensor_data_.gyro.angular_velocity = Eigen::Vector3d(av.x, av.y, av.z);
         sensor_data_.gyro.quaternion = quat;
         
@@ -170,6 +171,10 @@ Eigen::Vector3d DataCollector::getFusedAngularVelocity() const {
 
 const SensorData& DataCollector::getSensorData() const {
     return sensor_data_;
+}
+
+Eigen::Vector3d DataCollector::getRawGyroAttitude() const {
+    return sensor_data_.gyro.raw_attitude;
 }
 
 bool DataCollector::isMocapValid() const {

@@ -377,10 +377,18 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
             std::cout << "[姿态控制] 当前(动捕系): roll=" << current_mocap_raw.x()
                       << ", pitch=" << current_mocap_raw.y()
                       << ", yaw=" << current_mocap_raw.z() << std::endl;
-            // 显示当前陀螺姿态
-            std::cout << "[姿态控制] 当前(陀螺系): roll=" << gatt.x()
-                      << ", pitch=" << gatt.y()
-                      << ", yaw=" << gatt.z() << std::endl;
+            // 显示当前陀螺姿态（从原始四元数重新计算，并wrap到[-180, 180)范围）
+            Eigen::Vector3d raw_gyro_attitude = gyro_util::eulerZYX_degFromQuat(sensor_data.gyro.quaternion);
+            // Wrap到[-180, 180)范围
+            auto wrapDeg180 = [](double deg) {
+                deg = std::fmod(deg, 360.0);
+                if (deg >= 180.0) deg -= 360.0;
+                if (deg <  -180.0) deg += 360.0;
+                return deg;
+            };
+            std::cout << "[姿态控制] 当前(陀螺系): roll=" << wrapDeg180(raw_gyro_attitude.x())
+                      << ", pitch=" << wrapDeg180(raw_gyro_attitude.y())
+                      << ", yaw=" << wrapDeg180(raw_gyro_attitude.z()) << std::endl;
             log_counter = 0;
         }
     } else {
