@@ -264,22 +264,24 @@ void SystemController::controlLoopIteration() {
         std::cerr << "[SystemController] Failed to update sensor data" << std::endl;
         return;
     }
-    
+
     // 2. 获取当前传感器数据
     auto sensor_data = data_collector_->getSensorData();
-    
+
     // 3. 更新控制模式
     control_mode_manager_->update(sensor_data);
-    
+
     // 4. 更新状态发布器
+    std::cout << "[SystemController] Calling status_publisher_->update()" << std::endl;
     status_publisher_->update();
-    
+    std::cout << "[SystemController] status_publisher_->update() completed" << std::endl;
+
     // 5. 记录日志（如果启用）
     if (logging_enabled_ && log_csv_.is_open()) {
         auto now = std::chrono::steady_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             now - start_time_).count();
-        
+
         // 这里简化日志记录，实际应该记录更多数据
         log_csv_ << ms << ","
                  << sensor_data.gyro.attitude.x() << ","
@@ -291,7 +293,7 @@ void SystemController::controlLoopIteration() {
                  << sensor_data.imu.roll << ","
                  << sensor_data.imu.pitch << ","
                  << sensor_data.imu.yaw << "\n";
-        
+
         // 定期刷新
         static int flush_cnt = 0;
         if (++flush_cnt >= 50) {
@@ -302,10 +304,11 @@ void SystemController::controlLoopIteration() {
 }
 
 void SystemController::rateControl() {
+    std::cout << "[SystemController] rateControl called" << std::endl;
     auto current_time = std::chrono::steady_clock::now();
     auto elapsed = current_time - last_loop_time_;
     auto sleep_time = loop_period_ - elapsed;
-    
+
     if (sleep_time > std::chrono::milliseconds(0)) {
         std::this_thread::sleep_for(sleep_time);
     } else {
@@ -317,7 +320,7 @@ void SystemController::rateControl() {
                       << "us" << std::endl;
         }
     }
-    
+
     last_loop_time_ = std::chrono::steady_clock::now();
 }
 
