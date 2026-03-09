@@ -31,14 +31,16 @@ bool Docker::docking(CooperationDockData cooperation_dock_data) {
     double target_yaw_rad = std::atan2(dy, dx) - M_PI / 2.0;
     double target_yaw_deg = gyro_util::wrapDeg180(target_yaw_rad * 180.0 / M_PI);
 
-    // 计算当前应该旋转到的yaw角度 (绝对目标值)
-    // 这个 target_yaw_deg 就是机器人在 Mocap 坐标系下，为了让 Y 轴指向目标所需要的 yaw 角。
-    std::cout << "[Dock Controller] target yaw: " << target_yaw_deg << " deg" << std::endl;
-
     // 计算 yaw 的角度差值 (相对控制量)
     double yaw_diff_deg = gyro_util::wrapDeg180(target_yaw_deg - self_yaw_deg);
 
-    std::cout << "[Dock Controller] yaw diff: " << yaw_diff_deg << " deg" << std::endl;
+    // 降低日志输出频率（每3秒输出一次）
+    static int log_counter = 0;
+    if (++log_counter >= 150) { // 50Hz * 3秒 = 150次
+        std::cout << "[Dock Controller] target yaw: " << target_yaw_deg << " deg" << std::endl;
+        std::cout << "[Dock Controller] yaw diff: " << yaw_diff_deg << " deg" << std::endl;
+        log_counter = 0;
+    }
 
     controller_.setAttitudeInBalancing({0.0, 0.0, gyro_.getAttitude().z + yaw_diff_deg});
     return true;

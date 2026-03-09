@@ -259,6 +259,9 @@ void ControlModeManager::executeBalancingMode() {
     if_finish_balancing_ = balancer_.getIfFinishBalancing();
     attitude_controller_.setIfFinishBalancing(if_finish_balancing_);
 
+    // 调平状态信息
+    auto stage_status = balancer_.getStageStatus();
+
     // 获取当前力矩和陀螺姿态
     auto current_torque = attitude_controller_.getTorque();
     auto current_attitude = attitude_controller_.getCurrentGyroAttitude();
@@ -266,17 +269,24 @@ void ControlModeManager::executeBalancingMode() {
     // 获取质量块位置
     const auto& mass_positions = leadscrew_.getCurrentPositions();
 
-    // 降低调平日志输出频率（每1秒输出一次）
+    // 统一输出调平状态（每1秒输出一次）
     static int balance_log_counter = 0;
     if (++balance_log_counter >= 50) {
-        std::cout << "[调平进行中] 姿态(roll/pitch/yaw): (" << current_attitude.x() << ", "
+        // 输出实时状态
+        std::cout << "[" << stage_status.stage_name << "] "
+                  << stage_status.state << " | "
+                  << "姿态(roll/pitch/yaw): (" << current_attitude.x() << ", "
                   << current_attitude.y() << ", " << current_attitude.z() << ") | "
                   << "力矩(Tx/Ty/Tz): (" << current_torque.x() << ", "
                   << current_torque.y() << ", " << current_torque.z() << ") | "
                   << "质量块位置(X/Y/Z): (" << mass_positions[0] << ", "
-                  << mass_positions[1] << ", " << mass_positions[2] << ") | "
-                  << "调平状态: " << (if_finish_balancing_ ? "已完成" : "进行中") << std::endl;
+                  << mass_positions[1] << ", " << mass_positions[2] << ")" << std::endl;
         balance_log_counter = 0;
+    }
+
+    // 立即输出新的状态信息（如果有的话）
+    if (stage_status.has_new_info) {
+        std::cout << "[" << stage_status.stage_name << "] " << stage_status.detail << std::endl;
     }
 
     if (if_finish_balancing_) {
