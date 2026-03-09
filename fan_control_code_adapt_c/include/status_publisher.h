@@ -87,13 +87,7 @@ private:
      */
     void fillStatusData(PlaneData& data);
 
-    /**
-     * @brief 处理角度跳变，保证显示连续性
-     * @param current_angle 当前角度（度）
-     * @param last_angle 上一次的角度（度）
-     * @return 处理后的连续角度
-     */
-    double unwrapAngle(double current_angle, double last_angle);
+
 
     // MQTT相关
     mqtt::async_client& mqtt_client_;
@@ -175,8 +169,6 @@ private:
     // 动捕角度连续性处理（记录上一次的动捕角度值）
     double last_mocap_roll_ = 0.0;
     double last_mocap_pitch_ = 0.0;
-    double last_mocap_yaw_ = 0.0;
-
     // 发送控制
     std::atomic<int> send_counter_{0};
     std::atomic<int> send_interval_{5};  // 默认5个循环发送一次

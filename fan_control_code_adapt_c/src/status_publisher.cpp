@@ -25,10 +25,7 @@ StatusPublisher::StatusPublisher(mqtt::async_client& mqtt_client,
     , attitude_controller_(attitude_controller)
     , balancer_(balancer)
     , fan_(fan)
-    , wheel_(wheel)
-    , last_mocap_roll_(0.0)
-    , last_mocap_pitch_(0.0)
-    , last_mocap_yaw_(0.0) {
+    , wheel_(wheel) {
 }
 
 void StatusPublisher::initialize() {
@@ -58,19 +55,10 @@ void StatusPublisher::collectSystemStatus() {
 
     // 更新姿态和角速度：优先使用动捕数据，否则使用陀螺仪数据
     if (sensor_data.mocap.valid) {
-        // 处理动捕数据的角度跳变，保证显示连续性
-        double mocap_roll = sensor_data.mocap.euler_angles.x();
-        double mocap_pitch = sensor_data.mocap.euler_angles.y();
-        double mocap_yaw = sensor_data.mocap.euler_angles.z();
-
-        current_status_.attitude.roll = unwrapAngle(mocap_roll, last_mocap_roll_);
-        current_status_.attitude.pitch = unwrapAngle(mocap_pitch, last_mocap_pitch_);
-        current_status_.attitude.yaw = unwrapAngle(mocap_yaw, last_mocap_yaw_);
-
-        // 更新上一次的动捕角度值
-        last_mocap_roll_ = mocap_roll;
-        last_mocap_pitch_ = mocap_pitch;
-        last_mocap_yaw_ = mocap_yaw;
+        // 直接使用动捕数据的角度值（不unwrap，保持[-180, 180]范围）
+        current_status_.attitude.roll = sensor_data.mocap.euler_angles.x();
+        current_status_.attitude.pitch = sensor_data.mocap.euler_angles.y();
+        current_status_.attitude.yaw = sensor_data.mocap.euler_angles.z();
     } else {
         current_status_.attitude.roll = sensor_data.gyro.attitude.x();
         current_status_.attitude.pitch = sensor_data.gyro.attitude.y();
@@ -241,28 +229,6 @@ uint8_t StatusPublisher::calculateChecksum(const uint8_t* data, size_t length) c
         checksum ^= data[i];
     }
     return checksum;
-}
-
-double StatusPublisher::unwrapAngle(double current_angle, double last_angle) {
-    // 计算角度差
-    double delta = current_angle - last_angle;
-
-    // 如果角度差超过180度，说明发生了跳变
-    // 如果从179度跳到-179度，delta = -358度，但实际只变化了2度
-    // 我们需要通过加减360度来修正这个跳变
-
-    // 处理正向跳变（从接近180度跳到接近-180度）
-    if (delta < -180.0) {
-        delta += 360.0;
-    }
-    // 处理负向跳变（从接近-180度跳到接近180度）
-    else if (delta > 180.0) {
-        delta -= 360.0;
-    }
-
-
-    // 返回累积角度
-    return last_angle + delta;
 }
 
 int StatusPublisher::getSendCounter() const {
