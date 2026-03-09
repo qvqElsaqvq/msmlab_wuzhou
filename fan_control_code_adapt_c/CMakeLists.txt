@@ -70,6 +70,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         BUILD_RPATH "\$ORIGIN/../lib"
 )
 
+# ✅ 复制配置文件到构建输出目录
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.ini
+               ${CMAKE_CURRENT_BINARY_DIR}/config.ini
+               COPYONLY)
+
 # 模块化架构说明
 message(STATUS "========================================")
 message(STATUS "模块化架构已启用:")
