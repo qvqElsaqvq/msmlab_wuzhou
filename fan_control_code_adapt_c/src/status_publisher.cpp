@@ -53,17 +53,10 @@ void StatusPublisher::collectSystemStatus() {
     // 获取传感器数据
     auto sensor_data = data_collector_.getSensorData();
 
-    // 更新姿态和角速度：优先使用动捕数据，否则使用陀螺仪数据
-    if (sensor_data.mocap.valid) {
-        // 直接使用动捕数据的角度值（不unwrap，保持[-180, 180]范围）
-        current_status_.attitude.roll = sensor_data.mocap.euler_angles.x();
-        current_status_.attitude.pitch = sensor_data.mocap.euler_angles.y();
-        current_status_.attitude.yaw = sensor_data.mocap.euler_angles.z();
-    } else {
-        current_status_.attitude.roll = sensor_data.gyro.attitude.x();
-        current_status_.attitude.pitch = sensor_data.gyro.attitude.y();
-        current_status_.attitude.yaw = sensor_data.gyro.attitude.z();
-    }
+    // 更新姿态：使用原始陀螺仪姿态（不被动捕覆盖）
+    current_status_.attitude.roll = data_collector_.getRawGyroAttitude().x();
+    current_status_.attitude.pitch = data_collector_.getRawGyroAttitude().y();
+    current_status_.attitude.yaw = data_collector_.getRawGyroAttitude().z();
 
     current_status_.angular_velocity.wx = sensor_data.gyro.angular_velocity.x();
     current_status_.angular_velocity.wy = sensor_data.gyro.angular_velocity.y();
