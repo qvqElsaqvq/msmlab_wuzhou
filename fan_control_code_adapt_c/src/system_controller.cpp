@@ -243,19 +243,25 @@ void SystemController::stop() {
 
 void SystemController::run() {
     last_loop_time_ = std::chrono::steady_clock::now();
-    
+
     std::cout << "[SystemController] Control loop started" << std::endl;
-    
+
     while (running_ && !emergency_stop_) {
         try {
+            std::cout << "[SystemController] Loop iteration start" << std::endl;
             controlLoopIteration();
+            std::cout << "[SystemController] About to call rateControl" << std::endl;
             rateControl();
+            std::cout << "[SystemController] Loop iteration end" << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "[SystemController] Control loop error: " << e.what() << std::endl;
             // 继续运行，不退出
+        } catch (...) {
+            std::cerr << "[SystemController] Unknown exception in control loop" << std::endl;
+            throw; // 重新抛出以便看到崩溃信息
         }
     }
-    
+
     std::cout << "[SystemController] Control loop stopped" << std::endl;
 }
 
@@ -317,7 +323,14 @@ void SystemController::rateControl() {
     auto sleep_time = loop_period_ - elapsed;
 
     if (sleep_time > std::chrono::milliseconds(0)) {
-        std::this_thread::sleep_for(sleep_time);
+        try {
+            auto sleep_ms = std::chrono::duration_cast<std::chrono::milliseconds>(sleep_time).count();
+            std::cout << "[SystemController] Sleeping for " << sleep_ms << "ms" << std::endl;
+            std::this_thread::sleep_for(sleep_time);
+            std::cout << "[SystemController] Wake up" << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[SystemController] Sleep exception: " << e.what() << std::endl;
+        }
     } else {
         // 循环超时，警告
         auto overtime = -sleep_time;
