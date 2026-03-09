@@ -6,6 +6,7 @@
 #include "config_manager.h"
 #include <iostream>
 #include <chrono>
+#include <cstring>
 
 StatusPublisher::StatusPublisher(mqtt::async_client& mqtt_client,
                                CallBack& mqtt_callback,
@@ -111,19 +112,24 @@ void StatusPublisher::publishStatus(bool force) {
     try {
         // 发布消息
         std::cout << "[StatusPublisher] Publishing to topic: " << mqtt_callback_.plane_data_topic << std::endl;
+
+        // 使用 vector 作为缓冲区
+        std::vector<uint8_t> payload(sizeof(message));
+        std::memcpy(payload.data(), &message, sizeof(message));
+
         mqtt_client_.publish(
             mqtt_callback_.plane_data_topic,
-            &message,
-            sizeof(message),
+            payload.data(),
+            payload.size(),
             mqtt_callback_.QOS,
             false
         );
-        
+
         // 重置计数器
         send_counter_ = 0;
-        
+
         // 调试输出
-        // std::cout << "[StatusPublisher] Status published" << std::endl;
+        std::cout << "[StatusPublisher] Status published successfully" << std::endl;
     } catch (const mqtt::exception& e) {
         std::cerr << "[StatusPublisher] Failed to publish status: " << e.what() << std::endl;
     }
