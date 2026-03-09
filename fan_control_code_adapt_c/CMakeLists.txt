@@ -4,7 +4,8 @@ project(fan_control_code_adapt_c LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_subdirectory(thirdparty/serialPro)
+# 添加第三方库，但排除示例程序
+add_subdirectory(thirdparty/serialPro EXCLUDE_FROM_ALL)
 
 find_package(Threads REQUIRED)
 find_package(Eigen3 REQUIRED)

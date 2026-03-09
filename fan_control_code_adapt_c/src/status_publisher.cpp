@@ -97,19 +97,20 @@ void StatusPublisher::publishStatus(bool force) {
     if (!force && send_counter_ < send_interval_) {
         return;
     }
-    
+
     // 构建状态消息
     Plane message;
     buildStatusMessage(message);
-    
+
     // 计算并设置校验和
     uint8_t* data_ptr = reinterpret_cast<uint8_t*>(&message);
     size_t data_length = sizeof(message.head) + sizeof(message.data);
     uint8_t checksum = calculateChecksum(data_ptr, data_length);
     message.tail.checksum = checksum;
-    
+
     try {
         // 发布消息
+        std::cout << "[StatusPublisher] Publishing to topic: " << mqtt_callback_.plane_data_topic << std::endl;
         mqtt_client_.publish(
             mqtt_callback_.plane_data_topic,
             &message,
