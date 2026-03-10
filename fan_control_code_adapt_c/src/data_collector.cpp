@@ -99,16 +99,8 @@ void DataCollector::updateMocapData() {
         sensor_data_.mocap.position = Eigen::Vector3d(pose.x, pose.y, pose.z);
         sensor_data_.mocap.quaternion = Eigen::Quaterniond(pose.qw, pose.qx, pose.qy, pose.qz);
         
-        // 计算欧拉角
         sensor_data_.mocap.quaternion.normalize();
-        // 这里需要调用gyro_util::eulerZYX_degFromQuat，但为了简化先使用简单转换
-        // 实际项目中应该使用统一的工具函数
-        Eigen::Vector3d euler = sensor_data_.mocap.quaternion.toRotationMatrix().eulerAngles(2, 1, 0);
-        sensor_data_.mocap.euler_angles = Eigen::Vector3d(
-            euler[2] * 180.0 / M_PI,  // roll
-            euler[1] * 180.0 / M_PI,  // pitch
-            euler[0] * 180.0 / M_PI   // yaw
-        );
+        sensor_data_.mocap.euler_angles = gyro_util::eulerZYX_degFromQuat(sensor_data_.mocap.quaternion);
         
         mocap_valid_ = true;
         

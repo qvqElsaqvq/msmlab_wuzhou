@@ -43,7 +43,7 @@ CallBack::CallBack()
 	coop_dock_->head.head = 0x1D97;    // 表9：帧头 0x1D 0x97
 	coop_dock_->tail.checksum = 0x00; // 先置0，后续 memcpy 会覆盖
 
-    SERVER_ADDRESS = "mqtt://192.168.31.4:1883";
+    SERVER_ADDRESS = "mqtt://192.168.31.13:1883";
     CLIENT_ID = "satellite_client";
     QOS = 1;
     plane_data_topic = "attitude/data";
@@ -55,6 +55,7 @@ CallBack::CallBack()
     wheel_test_topic = "attitude/wheel";
     balance_topic = "attitude/balance";
     fan_calibration_topic = "attitude/calibration";
+    fan_calibration_topic1 = "attitude/calibration1";
 	coop_dock_topic = "attitude/cooperation";
 
     wx_ = 0.0;
@@ -451,6 +452,14 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         std::memcpy(coop_dock_, buffer, idx);
 
  	    coop_dock_data_ = coop_dock_->data;
+
+        if (coop_dock_data_.dock_device_id == 0 || coop_dock_data_.self_device_id == 0) {
+            std::cerr << "[WARN] CooperationDock invalid device id: self=0x"
+                      << std::hex << std::setfill('0') << std::setw(2) << (int)coop_dock_data_.self_device_id
+                      << " dock=0x" << std::setw(2) << (int)coop_dock_data_.dock_device_id
+                      << " drop\n";
+            return;
+        }
 
         std::cout << "----- CooperationDock arrived -----\n"
                   << " self_device_id: " << std::hex << std::setfill('0') << std::setw(2)

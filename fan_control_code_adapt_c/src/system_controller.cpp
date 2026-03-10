@@ -120,7 +120,7 @@ bool SystemController::initializeHardware() {
         leadscrew_ = std::make_unique<LeadScrewController>(*serial_);
         
         // 创建控制器
-        attitude_controller_ = std::make_unique<AttitudePDController>(*gyro_, *fan_, *wheel_, *serial_);
+        attitude_controller_ = std::make_unique<AttitudePDController>(*gyro_, *fan_, *wheel_);
         balancer_ = std::make_unique<MassCenterBalancer>(*gyro_, *fan_, *leadscrew_, *wheel_, *attitude_controller_);
         docker_ = std::make_unique<Docker>(*gyro_, *attitude_controller_);
         
@@ -161,6 +161,7 @@ bool SystemController::initializeMqtt() {
         mqtt_client_->subscribe(mqtt_callback_->wheel_test_topic, mqtt_callback_->QOS);
         mqtt_client_->subscribe(mqtt_callback_->balance_topic, mqtt_callback_->QOS);
         mqtt_client_->subscribe(mqtt_callback_->fan_calibration_topic, mqtt_callback_->QOS);
+        mqtt_client_->subscribe(mqtt_callback_->fan_calibration_topic1, mqtt_callback_->QOS);
         
         std::cout << "[SystemController] MQTT initialized and connected" << std::endl;
         return true;

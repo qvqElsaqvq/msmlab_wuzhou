@@ -85,6 +85,7 @@ public:
     std::string wheel_test_topic; // 动量轮临时测试指令
     std::string balance_topic; // 上位机传姿态气浮台调平指令
     std::string fan_calibration_topic; // 上位机传姿态气浮台旋翼校准指令
+    std::string fan_calibration_topic1;
     std::string coop_dock_topic;
 
 private:

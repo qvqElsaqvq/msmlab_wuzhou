@@ -1,3 +1,4 @@
 .idea
 cmake-build-debug
 cmake-build-debug-
+fan_control_code_adapt_c/build_win/

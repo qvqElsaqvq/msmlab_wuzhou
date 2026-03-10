@@ -29,6 +29,8 @@ set(SRC_FILES ${ALL_SRC_FILES})
 list(FILTER SRC_FILES EXCLUDE REGEX ".*_backup\\.cpp$")
 list(FILTER SRC_FILES EXCLUDE REGEX ".*_simplified\\.cpp$")
 list(FILTER SRC_FILES EXCLUDE REGEX ".*_test\\.cpp$")
+list(FILTER SRC_FILES EXCLUDE REGEX ".*backup.*\\.cpp$")
+list(FILTER SRC_FILES EXCLUDE REGEX ".*simplified.*\\.cpp$")
 
 # 打印源文件列表（调试用）
 message(STATUS "Source files to compile:")
@@ -50,9 +52,18 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_compile_definitions(${PROJECT_NAME} PRIVATE _LINUX)
 
 # ✅ 导入你本地的 nokov so（只用一种方式！）
+set(NOKOV_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib" CACHE PATH "Nokov SDK library directory")
+find_library(NOKOV_SDK_LIBRARY
+        NAMES nokov_sdk libnokov_sdk
+        PATHS "${NOKOV_SDK_DIR}"
+        NO_DEFAULT_PATH
+)
+if (NOT NOKOV_SDK_LIBRARY)
+    message(FATAL_ERROR "Nokov SDK library not found in ${NOKOV_SDK_DIR}")
+endif()
 add_library(nokov_sdk SHARED IMPORTED GLOBAL)
 set_target_properties(nokov_sdk PROPERTIES
-        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/libnokov_sdk.so"
+        IMPORTED_LOCATION "${NOKOV_SDK_LIBRARY}"
 )
 
 # ✅ 链接

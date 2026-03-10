@@ -33,8 +33,7 @@ ControlMode ControlModeManager::update(const SensorData& sensor_data) {
     wheel_.setIfPowerOff(power_off_);
     leadscrew_.setIfPowerOff(power_off_);
 
-    // Fan电源状态：关机或调平完成后都应停止
-    bool fan_should_off = power_off_ || fan_power_off_after_balance_;
+    bool fan_should_off = power_off_;
     fan_.setIfPowerOff(fan_should_off);
 
     // 调试输出（仅当状态改变时）
@@ -44,10 +43,10 @@ ControlMode ControlModeManager::update(const SensorData& sensor_data) {
         last_fan_off = fan_should_off;  // 初始化时同步状态
         initialized = true;
         std::cout << "[ControlModeManager] Fan电源状态初始化: " << (fan_should_off ? "关闭" : "开启")
-                  << " (power_off_=" << power_off_ << ", fan_power_off_after_balance_=" << fan_power_off_after_balance_ << ")" << std::endl;
+                  << " (power_off_=" << power_off_ << ")" << std::endl;
     } else if (fan_should_off != last_fan_off) {
         std::cout << "[ControlModeManager] Fan电源状态变更: " << (fan_should_off ? "关闭" : "开启")
-                  << " (power_off_=" << power_off_ << ", fan_power_off_after_balance_=" << fan_power_off_after_balance_ << ")" << std::endl;
+                  << " (power_off_=" << power_off_ << ")" << std::endl;
         last_fan_off = fan_should_off;
     }
     // 如果关机，切换到空闲模式并跳过控制执行
@@ -203,7 +202,6 @@ bool ControlModeManager::switchToMode(ControlMode mode, const ControlCommand* co
 
         case ControlMode::DIRECT_TORQUE:
         case ControlMode::VELOCITY_CONTROL:
-        case ControlMode::ATTITUDE_CONTROL:
         case ControlMode::DOCKING:
             // 这些模式需要Fan，确保Fan已启用
             fan_power_off_after_balance_ = false;
@@ -212,6 +210,15 @@ bool ControlModeManager::switchToMode(ControlMode mode, const ControlCommand* co
             current_balance_status_ = false;
             balancer_.reset_balance();
             attitude_controller_.setIfFinishBalancing(false);
+            break;
+
+        case ControlMode::ATTITUDE_CONTROL:
+            // 这些模式需要Fan，确保Fan已启用
+            fan_power_off_after_balance_ = false;
+            fan_.setIfPowerOff(false);
+            // 退出可能的自动调平状态
+            current_balance_status_ = false;
+            balancer_.reset_balance();
             break;
 
         case ControlMode::EMERGENCY_STOP:
@@ -321,12 +328,6 @@ void ControlModeManager::executeBalancingMode() {
         balancing_in_progress_ = false;
         balancer_.reset_balance();
 
-        // 调平完成后停止发送力矩指令（掐断与STM32通信）
-        // 方式：设置fan_power_off_after_balance_标志，update函数会据此停止通信
-        fan_power_off_after_balance_ = true;
-        fan_.setIfPowerOff(true);
-        std::cout << "[调平完成] 已停止发送力矩指令（掐断STM32通信）\n";
-
         // 调平完成后切换到空闲模式（但只在未关机时）
         if (!power_off_) {
             switchToMode(ControlMode::IDLE);
@@ -387,14 +388,6 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
         target_attitude_.pitch = rpyG_tgt.y();
         target_attitude_.yaw = rpyG_tgt.z();
         
-        const auto& config = ConfigManager::getInstance().getConfig();
-        auto gatt = sensor_data.gyro.attitude;
-        if (fabs(gatt.x() - target_attitude_.roll) < config.angle_tolerance_deg and
-            fabs(gatt.y() - target_attitude_.pitch) < config.angle_tolerance_deg and
-            fabs(gatt.z() - target_attitude_.yaw) < config.yaw_tolerance_deg) {
-            attitude_controller_.setIfFinishBalancing(true);
-        }
-
         // 降低日志输出频率（每3秒输出一次）
         static int log_counter = 0;
         if (++log_counter >= 150) { // 50Hz * 3秒 = 150次
@@ -408,16 +401,9 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
                       << ", yaw=" << current_mocap_raw.z() << std::endl;
             // 显示当前陀螺姿态（从原始四元数重新计算，并wrap到[-180, 180)范围）
             Eigen::Vector3d raw_gyro_attitude = gyro_util::eulerZYX_degFromQuat(sensor_data.gyro.quaternion);
-            // Wrap到[-180, 180)范围
-            auto wrapDeg180 = [](double deg) {
-                deg = std::fmod(deg, 360.0);
-                if (deg >= 180.0) deg -= 360.0;
-                if (deg <  -180.0) deg += 360.0;
-                return deg;
-            };
-            std::cout << "[姿态控制] 当前(陀螺系): roll=" << wrapDeg180(raw_gyro_attitude.x())
-                      << ", pitch=" << wrapDeg180(raw_gyro_attitude.y())
-                      << ", yaw=" << wrapDeg180(raw_gyro_attitude.z()) << std::endl;
+            std::cout << "[姿态控制] 当前(陀螺系): roll=" << gyro_util::wrapDeg180(raw_gyro_attitude.x())
+                      << ", pitch=" << gyro_util::wrapDeg180(raw_gyro_attitude.y())
+                      << ", yaw=" << gyro_util::wrapDeg180(raw_gyro_attitude.z()) << std::endl;
             log_counter = 0;
         }
     } else {
@@ -425,7 +411,6 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
         target_attitude_.roll = current_command_.attitude.roll;
         target_attitude_.pitch = current_command_.attitude.pitch;
         target_attitude_.yaw = current_command_.attitude.yaw;
-        attitude_controller_.setIfFinishBalancing(true);
     }
     
     // 执行姿态控制任务
