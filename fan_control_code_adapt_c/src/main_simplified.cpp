@@ -85,7 +85,15 @@ int main(int argc, char* argv[]) {
         
         // 主循环（等待信号）
         while (running && system_controller->isRunning()) {
+            // 可以在这里添加监控或用户交互
             std::this_thread::sleep_for(std::chrono::seconds(1));
+            
+            // 可选：定期打印状态
+            static int status_counter = 0;
+            if (++status_counter >= 10) { // 每10秒打印一次状态
+                std::cout << "\n[Main] " << system_controller->getStatusString();
+                status_counter = 0;
+            }
         }
         
         // 停止系统

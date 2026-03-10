@@ -16,6 +16,8 @@
 #include <iostream>
 #include <ctime>
 #include <time.h>
+#include <string>
+#include <cstdio>
 
 #include "attitude_pd_controller.h"
 #include "gyro_scope.h"
@@ -27,10 +29,22 @@ struct AngularVel { double wx{}, wy{}, wz{}; };
 struct WheelStatus { int id{}; double rpm{}; };
 struct Torque { double tx{}, ty{}, tz{}; };
 
+/**
+ * @brief 调平阶段状态信息
+ */
+struct BalancingStageStatus {
+    std::string stage_name;        // 当前阶段名称(如"XY轴调平", "Z轴调平")
+    std::string state;             // 当前状态(如"等待稳定", "采样力矩", "调平完成")
+    std::string detail;            // 详细信息(可选,如"15度调平完成")
+    bool has_new_info;             // 是否有新的状态信息需要输出
+};
+
 class MassCenterBalancer {
 public:
     using Vec3 = Eigen::Vector3d;
     using Quat = Eigen::Quaterniond;
+
+    bool if_power_off_;
 
     explicit MassCenterBalancer(GyroScope& gyro, Fan& fan, LeadScrewController& lscrew_controller, Wheel& wheel,
                                 AttitudePDController& attitude_controller);
@@ -61,9 +75,17 @@ public:
 
     void reset_balance();
 
+    void setIfPowerOff(bool if_power_off);
+
     [[nodiscard]] bool getIfInBalancing() const{ return if_set_balancing_; }
 
     [[nodiscard]] bool getIfFinishBalancing() const{ return if_finish_balancing_; }
+
+    /**
+     * @brief 获取当前调平阶段的状态信息
+     * @return 调平阶段状态,如果无新信息则 has_new_info 为 false
+     */
+    [[nodiscard]] BalancingStageStatus getStageStatus() const;
 
 private:
     GyroScope& gyro_;
@@ -132,6 +154,15 @@ private:
     bool if_finish_balancing_;  // 调平是否结束
     bool flag_x_, flag_y_; // xy是否已经调平完成
     bool if_set_balancing_; // 是否触发自动调平
+
+    /* 状态信息触发标志 */
+    mutable bool steady_state_triggered_;  // 稳态检测是否刚触发
+    mutable bool sampling_triggered_;  // 采样是否刚触发
+    mutable bool xy_balance_complete_triggered_;  // XY调平完成是否刚触发
+    mutable bool z_angle_adjust_triggered_;  // Z轴角度调整是否刚触发
+    mutable bool z_15_complete_triggered_;  // Z轴15度调平完成是否刚触发
+    mutable bool z_20_complete_triggered_;  // Z轴20度调平完成是否刚触发
+    mutable bool z_complete_triggered_;  // Z轴调平完成是否刚触发
 
     /* z轴调平相关 */
     bool if_return_zero_;

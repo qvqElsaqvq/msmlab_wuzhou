@@ -4,8 +4,7 @@ project(fan_control_code_adapt_c LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 添加第三方库，但排除示例程序
-add_subdirectory(thirdparty/serialPro EXCLUDE_FROM_ALL)
+add_subdirectory(thirdparty/serialPro)
 
 find_package(Threads REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -19,23 +18,9 @@ target_include_directories(inih PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/inih/cpp
 )
 
-# 收集所有源文件
-file(GLOB ALL_SRC_FILES CONFIGURE_DEPENDS
+file(GLOB SRC_FILES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
-
-# 过滤掉备份文件和测试文件
-set(SRC_FILES ${ALL_SRC_FILES})
-list(FILTER SRC_FILES EXCLUDE REGEX ".*_backup\\.cpp$")
-list(FILTER SRC_FILES EXCLUDE REGEX ".*_simplified\\.cpp$")
-list(FILTER SRC_FILES EXCLUDE REGEX ".*_test\\.cpp$")
-
-# 打印源文件列表（调试用）
-message(STATUS "Source files to compile:")
-foreach(SRC_FILE ${SRC_FILES})
-    get_filename_component(FILE_NAME ${SRC_FILE} NAME)
-    message(STATUS "  ${FILE_NAME}")
-endforeach()
 
 # ✅ 先创建可执行文件 target（必须在 include/link 之前）
 add_executable(${PROJECT_NAME} ${SRC_FILES})
@@ -70,18 +55,3 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 set_target_properties(${PROJECT_NAME} PROPERTIES
         BUILD_RPATH "\$ORIGIN/../lib"
 )
-
-# ✅ 复制配置文件到构建输出目录
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.ini
-               ${CMAKE_CURRENT_BINARY_DIR}/config.ini
-               COPYONLY)
-
-# 模块化架构说明
-message(STATUS "========================================")
-message(STATUS "模块化架构已启用:")
-message(STATUS "  - SystemController: 主控制系统")
-message(STATUS "  - DataCollector: 数据采集模块")
-message(STATUS "  - ControlModeManager: 控制模式管理")
-message(STATUS "  - StatusPublisher: 状态发布模块")
-message(STATUS "  - ConfigManager: 配置管理模块")
-message(STATUS "========================================")

@@ -4,13 +4,17 @@
 
 #include "attitude_pd_controller.h"
 
+#include <memory>
+#include <optional>
+
 using Vec3 = Eigen::Vector3d;
 using Quat = Eigen::Quaterniond;
 
-AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& wheel):
+AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& wheel, msmserial::MsMSerial& msm_serial):
     gyro_(gyro),
     fan_(fan),
-    wheel_(wheel)
+    wheel_(wheel),
+    ser_(msm_serial)
 {
     std::cout << "[AttitudePDController] init" << std::endl;
 
@@ -21,9 +25,9 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
     torque_y = 0.0;
     torque_z = 0.0;
 
-    start_toq_ = 50;
-
     if_finish_balancing_ = false;
+
+    cnt_ = 0;
 
     /* PID输出值初始化 */
     angle_pid_.Dout = Vec3(0.0, 0, 0);
@@ -37,57 +41,20 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
     v_pid_.last_error = Vec3(0, 0, 0);
     v_pid_.out = Vec3(0, 0, 0);
 
-    wheel_pid_x_.Dout = Vec3(0, 0, 0);
-    wheel_pid_x_.Pout = Vec3(0, 0, 0);
-    wheel_pid_x_.Iout = Vec3(0, 0, 0);
-    wheel_pid_x_.last_error = Vec3(0, 0, 0);
-    wheel_pid_x_.out = Vec3(0, 0, 0);
-
-    wheel_pid_y_.Dout = Vec3(0, 0, 0);
-    wheel_pid_y_.Pout = Vec3(0, 0, 0);
-    wheel_pid_y_.Iout = Vec3(0, 0, 0);
-    wheel_pid_y_.last_error = Vec3(0, 0, 0);
-    wheel_pid_y_.out = Vec3(0, 0, 0);
-
-    wheel_pid_z_.Dout = Vec3(0, 0, 0);
-    wheel_pid_z_.Pout = Vec3(0, 0, 0);
-    wheel_pid_z_.Iout = Vec3(0, 0, 0);
-    wheel_pid_z_.last_error = Vec3(0, 0, 0);
-    wheel_pid_z_.out = Vec3(0, 0, 0);
-
     /* PID上限阈值 */
     angle_pid_.max_i_out = Vec3(0, 0, 0);
-    angle_pid_.max_out = Vec3(1, 1, 3);
+    angle_pid_.max_out = Vec3(1, 1, 2);
     v_pid_.max_i_out = Vec3(50, 50, 100);
     v_pid_.max_out = Vec3(600, 600, 600);
 
-    wheel_pid_x_.max_i_out = Vec3(0, 0, 0);
-    wheel_pid_x_.max_out = Vec3(3000, 0, 0);
-    wheel_pid_y_.max_i_out = Vec3(0, 0, 0);
-    wheel_pid_y_.max_out = Vec3(3000, 0, 0);
-    wheel_pid_z_.max_i_out = Vec3(0, 0, 0);
-    wheel_pid_z_.max_out = Vec3(3000, 0, 0);
-
     /* PID参数 */
-    angle_pid_.Kp = Vec3(0.8, 0.8, 0.8);
+    angle_pid_.Kp = Vec3(0.8, 1.0, 1.0);
     angle_pid_.Ki = Vec3(0, 0, 0);
-    angle_pid_.Kd = Vec3(30, 15, 45);
+    angle_pid_.Kd = Vec3(100, 120, 160);
 
-    v_pid_.Kp = Vec3(180, 175, 200);
-    v_pid_.Ki = Vec3(0.2, 0.4, 0.5);
+    v_pid_.Kp = Vec3(300, 350, 200);
+    v_pid_.Ki = Vec3(1.0, 1.2, 0.8);
     v_pid_.Kd = Vec3(0, 0, 0);
-
-    wheel_pid_x_.Kp = Vec3(6000, 0, 0);
-    wheel_pid_x_.Ki = Vec3(0.0, 0.0, 0.0);
-    wheel_pid_x_.Kd = Vec3(5000, 0, 0);
-
-    wheel_pid_y_.Kp = Vec3(6000, 0, 0);
-    wheel_pid_y_.Ki = Vec3(0.0, 0.0, 0.0);
-    wheel_pid_y_.Kd = Vec3(5000, 0, 0);
-
-    wheel_pid_z_.Kp = Vec3(6000, 0, 0);
-    wheel_pid_z_.Ki = Vec3(0.0, 0.0, 0.0);
-    wheel_pid_z_.Kd = Vec3(5000, 0, 0);
 }
 
 PID AttitudePDController::computeControl(PID& pid, Vec3& ref, Vec3& set)
@@ -121,7 +88,9 @@ PID AttitudePDController::computeControl(PID& pid, Vec3& ref, Vec3& set)
     return pid;
 }
 
-void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
+void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg,
+    const std::optional<GyroScope::Vec3> other_av,
+    const std::optional<GyroScope::Vec3> other_at)
 {
     /*
      * 调平过程中使用的不进死循环的控制
@@ -131,14 +100,17 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     angleTarget_ = eulerAngleDeg;
 
     /* 读当前姿态 */
-    auto av = gyro_.getAngularVelocity();  // °/s
-    auto at = gyro_.getAttitude();  // °
+    auto av = other_av.value_or(gyro_.getAngularVelocity()); // °/s
+    auto at = other_at.value_or(gyro_.getAttitude());// °
     Vec3 angleCurrentDeg(at.x, at.y, at.z);
-    Vec3 wCurrentDeg(av.x, av.z, av.y);
+    Vec3 wCurrentDeg(av.x, av.y, av.z);
 
     /* X/Y/Z 双环 PID */
-    PID wCmd = computeControl(angle_pid_, angleCurrentDeg, angleTarget_);
-    wCmd.out[1] = -wCmd.out[1];
+    auto angle_diff = [](double tar, double cur){return 180.0 / M_PI * atan2(sin(tar / 180.0 * M_PI - cur / 180.0 * M_PI), cos(tar / 180.0 * M_PI - cur / 180.0 * M_PI));};
+    Vec3 err_angle{angle_diff(angleTarget_.x(), at.x), angle_diff(angleTarget_.y(), at.y), angle_diff(angleTarget_.z(), at.z)};
+    Vec3 ZERO{0.0, 0.0, 0.0};
+    // std::cout << "err: " <<angleTarget_.z() << " " << at.z << std::endl;
+    PID wCmd = computeControl(angle_pid_, ZERO, err_angle);
     wCmd.out[2] = -wCmd.out[2];
     // std::cout << "last_error: " << angle_pid_.last_error << std::endl;
     // std::cout << "angle out: " << wCmd.out[0] << ", " << wCmd.out[1] << ", " << wCmd.out[2] << std::endl;
@@ -152,74 +124,44 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg)
     // 下发力矩
     fan_.sendTorque(torque_x, torque_y, torque_z);
 
-    /* 动量轮参与控制 */
-    if(if_finish_balancing_)
-    {
-        if(fabs(angleTarget_.x() - at.x) < 0.5)
-        {
-            PID pid_x = computeControl(wheel_pid_x_, angleCurrentDeg, angleTarget_);
-            uint8_t dir;
-            if(pid_x.out[0] > 0)
-            {
-                pid_x.out[0] += start_toq_;
-                dir = 0x55;
-            }
-            else if(pid_x.out[0] < 0)
-            {
-                pid_x.out[0] -= start_toq_;
-                dir = 0xAA;
-            }
-            else
-            {
-                pid_x.out[0] = 0;
-                dir = 0x55;
-            }
-            wheel_.sendFrame(0x03, dir, pid_x.out[0]);
-        }
-        if(fabs(angleTarget_.y() - at.y) < 0.5)
-        {
-            PID pid_y = computeControl(wheel_pid_y_, angleCurrentDeg, angleTarget_);
-            uint8_t dir;
-            if(pid_y.out[0] > 0)
-            {
-                pid_y.out[0] += start_toq_;
-                dir = 0x55;
-            }
-            else if(pid_y.out[0] < 0)
-            {
-                pid_y.out[0] -= start_toq_;
-                dir = 0xAA;
-            }
-            else
-            {
-                pid_y.out[0] = 0;
-                dir = 0x55;
-            }
-            wheel_.sendFrame(0x02, dir, pid_y.out[0]);
-        }
-        if(fabs(angleTarget_.z() - at.z) < 0.5)
-        {
-            PID pid_z = computeControl(wheel_pid_z_, angleCurrentDeg, angleTarget_);
-            uint8_t dir;
-            if(pid_z.out[0] > 0)
-            {
-                pid_z.out[0] += start_toq_;
-                dir = 0x55;
-            }
-            else if(pid_z.out[0] < 0)
-            {
-                pid_z.out[0] -= start_toq_;
-                dir = 0xAA;
-            }
-            else
-            {
-                pid_z.out[0] = 0;
-                dir = 0x55;
-            }
-            wheel_.sendFrame(0x01, dir, pid_z.out[0]);
+    if (if_finish_balancing_) {
+        cnt_++;
+        if (cnt_ >= 50) {
+            cnt_ = 0;
+            WheelInit _wheelinit{
+            .device_id = 0x5A,
+            .target_roll = (int16_t)(angleTarget_.x() * 100.0f),
+            .target_pitch = (int16_t)(angleTarget_.y() * 100.0f),
+            .target_yaw = (int16_t)(angleTarget_.z() * 100.0f),
+            .flag_balance = (uint8_t)if_finish_balancing_,
+        };
+            ser_.write(0x10, _wheelinit);
+        std::cout << "wheelinit: " << ",roll:"<< _wheelinit.target_roll << ",pitch:"<<  _wheelinit.target_pitch<< ",yaw:"<<  _wheelinit.target_yaw << std::endl;
         }
     }
 }
+
+void AttitudePDController::setAngularVelocityInControl(const Vec3& wTargetDeg)
+{
+    // 读当前角速度（deg/s）
+    auto av = gyro_.getAngularVelocity();
+    Vec3 wCurrentDeg(av.x, av.y, av.z);
+
+    // 保持与你姿态环一致的 yaw 方向约定（你在姿态控制里对 wCmd.out[2] 做了反号）
+    Vec3 wTargetAdj = wTargetDeg;
+    wTargetAdj[2] = -wTargetAdj[2];
+
+    // 只走速度环：wCurrent -> wTargetAdj，输出力矩
+    PID tauCmd = computeControl(v_pid_, wCurrentDeg, wTargetAdj);
+
+    torque_x = tauCmd.out[0];
+    torque_y = tauCmd.out[1];
+    torque_z = tauCmd.out[2];
+
+    fan_.sendTorque(torque_x, torque_y, torque_z);
+}
+
+
 
 Vec3 AttitudePDController::getTorque()
 {
@@ -228,6 +170,12 @@ Vec3 AttitudePDController::getTorque()
     current_torque.y() = torque_y;
     current_torque.z() = torque_z;
     return current_torque;
+}
+
+Vec3 AttitudePDController::getCurrentGyroAttitude()
+{
+    auto at = gyro_.getAttitude();
+    return Vec3(at.x, at.y, at.z);
 }
 
 void AttitudePDController::setIfFinishBalancing(bool if_finish_balancing)

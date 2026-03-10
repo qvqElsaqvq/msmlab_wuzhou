@@ -87,6 +87,12 @@ message_data LeadScrewAlarm{ // 0x09
     uint8_t alarm_z; // z轴丝杆撞边报警
 };
 
+message_data CooperationDockData{
+    uint8_t dock_device_id;     // 3  对接模块设备号 内容：01/02/03……
+    uint8_t cmd_type;           // 4  指令编号 内容：0x17（合作目标交会对接）
+    uint8_t self_device_id;   // 5  被对接模块设备号 内容：01/02/03……
+};
+
 /* 平面气浮台和上位机MQTT通信部分 */
 message_data NUC_Head{
     uint16_t head;
@@ -94,6 +100,14 @@ message_data NUC_Head{
 
 message_data NUC_Tail{
     uint8_t checksum;
+};
+
+message_data WheelInit{
+    uint8_t device_id; // 设备编号 内容：5A
+    int16_t target_roll;
+    int16_t target_pitch;
+    int16_t target_yaw;
+    uint8_t flag_balance;
 };
 
 // 平面气浮台传上位机指令格式 attitude/data
@@ -162,7 +176,7 @@ message_data CmdPlaneTrajectory {
 message_data CmdPlanePower {
     uint8_t device_id; // 3    设备号 内容：01/02/03……
     uint8_t cmd_type; // 4    指令类型 内容：0x13
-    uint16_t cmd_data; // 5~6    指令内容 内容：0x0000 停机
+    uint32_t cmd_data; // 5~6    指令内容 内容：0x0000 停机
 };
 
 message_data FanTestData{
@@ -241,10 +255,18 @@ message_data Balance{
     NUC_Tail tail;
 };
 
+
 message_data FanCalibration{
     NUC_Head head; // 0x5A,0x47
     FanCalibrationMQTTData data;
     NUC_Tail tail;
+};
+
+/* 完整帧：6 字节 */
+message_data CooperationDock{
+    NUC_Head head;              // 1~2 帧头 0x1D,0x97（= 0x1D97）
+    CooperationDockData data;   // 3~5
+    NUC_Tail tail;              // 6 XOR校验（前5字节异或）
 };
 
 #endif //SATELLITE_MESSAGE_H
