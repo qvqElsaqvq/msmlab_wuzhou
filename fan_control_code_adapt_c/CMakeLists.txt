@@ -22,22 +22,21 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
+set(VICON_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/vicon_datastream_sdk/Linux64" CACHE PATH "Vicon DataStream SDK directory")
+
 # ✅ 先创建可执行文件 target（必须在 include/link 之前）
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 
 # ✅ 你的 include
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${VICON_SDK_DIR}
         ${EIGEN3_INCLUDE_DIRS}
 )
 
-# ✅ 让 NokovSDKClient.h 识别 Linux（不改 SDK 头文件的最小办法）
-target_compile_definitions(${PROJECT_NAME} PRIVATE _LINUX)
-
-# ✅ 导入你本地的 nokov so（只用一种方式！）
-add_library(nokov_sdk SHARED IMPORTED GLOBAL)
-set_target_properties(nokov_sdk PROPERTIES
-        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/libnokov_sdk.so"
+add_library(vicon_sdk_cpp SHARED IMPORTED GLOBAL)
+set_target_properties(vicon_sdk_cpp PROPERTIES
+        IMPORTED_LOCATION "${VICON_SDK_DIR}/libViconDataStreamSDK_CPP.so"
 )
 
 # ✅ 链接
@@ -46,12 +45,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         serialib
         inih
         Threads::Threads
-        nokov_sdk
+        vicon_sdk_cpp
         paho-mqttpp3
         paho-mqtt3as
 )
 
-# ✅ 运行时能找到你项目里的 libnokov_sdk.so（不想配 LD_LIBRARY_PATH 就加这个）
+# ✅ 运行时能找到 Vicon SDK 的 .so（不想配 LD_LIBRARY_PATH 就加这个）
 set_target_properties(${PROJECT_NAME} PROPERTIES
-        BUILD_RPATH "\$ORIGIN/../lib"
+        BUILD_RPATH "${VICON_SDK_DIR};\$ORIGIN/../lib"
 )

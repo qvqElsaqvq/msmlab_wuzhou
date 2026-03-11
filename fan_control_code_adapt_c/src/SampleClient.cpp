@@ -1,152 +1,280 @@
-// src/SampleClient.cpp
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <pthread.h>
 #include <unordered_map>
-#include <vector>
 #include <string>
-
-#include "NokovSDKTypes.h"
-#include "NokovSDKClient.h"
-#include "Utility.h"
+#include <vector>
+#include <thread>
+#include <atomic>
+#include <chrono>
+#include <algorithm>
+#include <cctype>
 
 #include "nokov_bridge.h"
+#include "DataStreamClient.h"
 
-// ====== 回调声明 ======
-static void DataHandler(sFrameOfMocapData* data, void* pUserData);
+using ViconDataStreamSDK::CPP::Client;
+using ViconDataStreamSDK::CPP::Result;
+using ViconDataStreamSDK::CPP::Direction;
 
-// ====== 全局 ======
+static constexpr int kOk = 0;
+static constexpr int kErr = 1;
+
 static pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
-static NokovSDKClient* g_client = nullptr;
+static Client* g_client = nullptr;
+static std::thread g_worker;
+static std::atomic<bool> g_running{false};
 
-// ID -> Name
-static std::unordered_map<int, std::string> g_rigidBodyIdMap;
-// Name -> ID（方便按名字取）
-static std::unordered_map<std::string, int> g_rigidBodyNameMap;
+static std::vector<std::string> g_subjects;
+static std::unordered_map<std::string, std::string> g_subjectRootSegment;
+static std::unordered_map<int, std::string> g_idToName;
+static std::unordered_map<std::string, int> g_nameToId;
 
-// 最新帧缓存：ID -> Pose
 static std::unordered_map<int, RigidPose> g_latestPoseById;
+static std::unordered_map<std::string, RigidPose> g_latestPoseByName;
 
-static const char* SafeNameById(int id)
+static bool StrIContains(const std::string& s, const char* needle)
 {
-    auto it = g_rigidBodyIdMap.find(id);
-    if (it == g_rigidBodyIdMap.end()) return "UNKNOWN";
-    return it->second.c_str();
+    if (!needle || needle[0] == '\0') return false;
+    std::string a = s;
+    std::string b = needle;
+    std::transform(a.begin(), a.end(), a.begin(), [](unsigned char c){ return (char)std::tolower(c); });
+    std::transform(b.begin(), b.end(), b.begin(), [](unsigned char c){ return (char)std::tolower(c); });
+    return a.find(b) != std::string::npos;
 }
 
-static void BuildRigidBodyMapFromDescriptions(sDataDescriptions* pData)
+static long long NowMs()
 {
-    if (!pData) return;
+    using namespace std::chrono;
+    return (long long)duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
 
-    g_rigidBodyIdMap.clear();
-    g_rigidBodyNameMap.clear();
+static void RefreshSubjectsLocked()
+{
+    g_subjects.clear();
+    g_subjectRootSegment.clear();
+    g_idToName.clear();
+    g_nameToId.clear();
 
-    for (int i = 0; i < pData->nDataDescriptions; ++i)
+    if (!g_client) return;
+
+    auto outCount = g_client->GetSubjectCount();
+    if (outCount.Result != Result::Success) return;
+
+    std::vector<std::string> names;
+    names.reserve(outCount.SubjectCount);
+
+    for (unsigned int i = 0; i < outCount.SubjectCount; ++i)
     {
-        const auto& desc = pData->arrDataDescriptions[i];
-        if (desc.type == Descriptor_RigidBody && desc.Data.RigidBodyDescription)
-        {
-            int id = desc.Data.RigidBodyDescription->ID;
-            const char* name = desc.Data.RigidBodyDescription->szName ? desc.Data.RigidBodyDescription->szName : "UNKNOWN";
-            g_rigidBodyIdMap[id] = name;
-            g_rigidBodyNameMap[name] = id;
-        }
+        auto outName = g_client->GetSubjectName(i);
+        if (outName.Result != Result::Success) continue;
+        names.push_back(outName.SubjectName);
     }
 
-    printf("\n=== RigidBody Map (ID -> Name) ===\n");
-    for (const auto& kv : g_rigidBodyIdMap)
-        printf("  ID=%d  Name=%s\n", kv.first, kv.second.c_str());
-    printf("=================================\n\n");
+    std::sort(names.begin(), names.end());
+    g_subjects = names;
+
+    std::unordered_map<std::string, int> assigned;
+    int nextId = 1;
+
+    auto assignId = [&](const std::string& name, int forcedId) {
+        if (assigned.count(name)) return;
+        assigned[name] = forcedId;
+        g_idToName[forcedId] = name;
+        g_nameToId[name] = forcedId;
+    };
+
+    for (const auto& name : g_subjects)
+    {
+        if (name == "WUZHOUSHANG") assignId(name, 2);
+    }
+    for (const auto& name : g_subjects)
+    {
+        if (StrIContains(name, "dock")) assignId(name, 1);
+    }
+
+    for (const auto& name : g_subjects)
+    {
+        if (assigned.count(name)) continue;
+        while (g_idToName.count(nextId)) ++nextId;
+        assignId(name, nextId);
+        ++nextId;
+    }
+
+    for (const auto& name : g_subjects)
+    {
+        auto outRoot = g_client->GetSubjectRootSegmentName(name);
+        if (outRoot.Result != Result::Success) continue;
+        g_subjectRootSegment[name] = outRoot.SegmentName;
+    }
+}
+
+static void WorkerLoop()
+{
+    while (g_running.load())
+    {
+        Client* c = nullptr;
+        pthread_mutex_lock(&g_mutex);
+        c = g_client;
+        pthread_mutex_unlock(&g_mutex);
+
+        if (!c)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
+
+        auto outFrame = c->GetFrame();
+        if (outFrame.Result != Result::Success)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            continue;
+        }
+
+        const long long ts = NowMs();
+        int frameNumber = 0;
+        auto outFrameNum = c->GetFrameNumber();
+        if (outFrameNum.Result == Result::Success) frameNumber = (int)outFrameNum.FrameNumber;
+
+        pthread_mutex_lock(&g_mutex);
+        if (g_subjects.empty())
+        {
+            RefreshSubjectsLocked();
+        }
+        auto subjects = g_subjects;
+        auto rootSegMap = g_subjectRootSegment;
+        auto nameToId = g_nameToId;
+        pthread_mutex_unlock(&g_mutex);
+
+        std::unordered_map<int, RigidPose> posesById;
+        std::unordered_map<std::string, RigidPose> posesByName;
+
+        for (const auto& subject : subjects)
+        {
+            const auto itRoot = rootSegMap.find(subject);
+            if (itRoot == rootSegMap.end()) continue;
+            const auto itId = nameToId.find(subject);
+            if (itId == nameToId.end()) continue;
+
+            const std::string& segment = itRoot->second;
+
+            auto outT = c->GetSegmentGlobalTranslation(subject, segment);
+            auto outQ = c->GetSegmentGlobalRotationQuaternion(subject, segment);
+            if (outT.Result != Result::Success || outQ.Result != Result::Success) continue;
+            if (outT.Occluded || outQ.Occluded) continue;
+
+            RigidPose p;
+            p.id = itId->second;
+            p.x = outT.Translation[0];
+            p.y = outT.Translation[1];
+            p.z = outT.Translation[2];
+            p.qx = outQ.Rotation[0];
+            p.qy = outQ.Rotation[1];
+            p.qz = outQ.Rotation[2];
+            p.qw = outQ.Rotation[3];
+            p.timestamp = ts;
+            p.frame = frameNumber;
+
+            posesById[p.id] = p;
+            posesByName[subject] = p;
+            posesByName[segment] = p;
+        }
+
+        pthread_mutex_lock(&g_mutex);
+        for (const auto& kv : posesById) g_latestPoseById[kv.first] = kv.second;
+        for (const auto& kv : posesByName) g_latestPoseByName[kv.first] = kv.second;
+        pthread_mutex_unlock(&g_mutex);
+    }
 }
 
 int Nokov_Start(const char* server_ip)
 {
     if (!server_ip || server_ip[0] == '\0')
     {
-        printf("[NOKOV] server_ip empty\n");
-        return ErrorCode_Internal;
+        printf("[VICON] server_ip empty\n");
+        return kErr;
     }
 
     pthread_mutex_lock(&g_mutex);
 
-    // release previous
+    if (g_running.load())
+    {
+        pthread_mutex_unlock(&g_mutex);
+        return kOk;
+    }
+
     if (g_client)
     {
-        g_client->Uninitialize();
+        g_client->Disconnect();
         delete g_client;
         g_client = nullptr;
     }
 
-    g_client = new NokovSDKClient();
-
-    unsigned char ver[4] = {0};
-    g_client->NokovSDKVersion(ver);
-    printf("[NOKOV] SDK ver %d.%d.%d.%d\n", ver[0], ver[1], ver[2], ver[3]);
-
-    int ret = g_client->Initialize((char*)server_ip);
-    if (ret != ErrorCode_OK)
-    {
-        printf("[NOKOV] Initialize failed. code=%d\n", ret);
-        pthread_mutex_unlock(&g_mutex);
-        return ErrorCode_Internal;
-    }
-
-    sServerDescription sd;
-    memset(&sd, 0, sizeof(sd));
-    g_client->GetServerDescription(&sd);
-    if (!sd.HostPresent)
-    {
-        printf("[NOKOV] Host not present\n");
-        pthread_mutex_unlock(&g_mutex);
-        return ErrorCode_Internal;
-    }
-
-    // descriptions -> build ID/Name map
-    sDataDescriptions* pDesc = nullptr;
-    g_client->GetDataDescriptions(&pDesc);
-    if (pDesc)
-    {
-        BuildRigidBodyMapFromDescriptions(pDesc);
-        g_client->FreeDataDescriptions(pDesc);
-    }
-    else
-    {
-        printf("[NOKOV] Warning: GetDataDescriptions returned null\n");
-    }
-
-    // register callback
-    g_client->SetDataCallback(DataHandler, g_client);
-
+    g_client = new Client();
+    g_subjects.clear();
+    g_subjectRootSegment.clear();
+    g_idToName.clear();
+    g_nameToId.clear();
     g_latestPoseById.clear();
-
-    printf("[NOKOV] Connected to %s, receiving frames...\n", server_ip);
+    g_latestPoseByName.clear();
 
     pthread_mutex_unlock(&g_mutex);
-    return ErrorCode_OK;
+
+    auto outConn = g_client->Connect(server_ip);
+    if (outConn.Result != Result::Success)
+    {
+        printf("[VICON] Connect failed. code=%d\n", (int)outConn.Result);
+        pthread_mutex_lock(&g_mutex);
+        delete g_client;
+        g_client = nullptr;
+        pthread_mutex_unlock(&g_mutex);
+        return kErr;
+    }
+
+    g_client->EnableSegmentData();
+    g_client->SetAxisMapping(Direction::Forward, Direction::Left, Direction::Up);
+    g_client->SetStreamMode(ViconDataStreamSDK::CPP::StreamMode::ClientPull);
+
+    g_running.store(true);
+    g_worker = std::thread(WorkerLoop);
+
+    printf("[VICON] Connected to %s, receiving frames...\n", server_ip);
+    return kOk;
 }
 
 void Nokov_Stop()
 {
     pthread_mutex_lock(&g_mutex);
+    if (!g_running.load())
+    {
+        pthread_mutex_unlock(&g_mutex);
+        return;
+    }
+    g_running.store(false);
+    if (g_client) g_client->Disconnect();
+    pthread_mutex_unlock(&g_mutex);
 
+    if (g_worker.joinable()) g_worker.join();
+
+    pthread_mutex_lock(&g_mutex);
     if (g_client)
     {
-        g_client->Uninitialize();
         delete g_client;
         g_client = nullptr;
     }
+    g_subjects.clear();
+    g_subjectRootSegment.clear();
+    g_idToName.clear();
+    g_nameToId.clear();
     g_latestPoseById.clear();
-    g_rigidBodyIdMap.clear();
-    g_rigidBodyNameMap.clear();
-
+    g_latestPoseByName.clear();
     pthread_mutex_unlock(&g_mutex);
 }
 
 bool Nokov_GetPoseById(int id, RigidPose& out)
 {
     pthread_mutex_lock(&g_mutex);
-    auto it = g_latestPoseById.find(id);
+    const auto it = g_latestPoseById.find(id);
     if (it == g_latestPoseById.end())
     {
         pthread_mutex_unlock(&g_mutex);
@@ -160,44 +288,13 @@ bool Nokov_GetPoseById(int id, RigidPose& out)
 bool Nokov_GetPoseByName(const std::string& name, RigidPose& out)
 {
     pthread_mutex_lock(&g_mutex);
-    auto itName = g_rigidBodyNameMap.find(name);
-    if (itName == g_rigidBodyNameMap.end())
+    const auto it = g_latestPoseByName.find(name);
+    if (it != g_latestPoseByName.end())
     {
+        out = it->second;
         pthread_mutex_unlock(&g_mutex);
-        return false;
+        return true;
     }
-    int id = itName->second;
-    auto itPose = g_latestPoseById.find(id);
-    if (itPose == g_latestPoseById.end())
-    {
-        pthread_mutex_unlock(&g_mutex);
-        return false;
-    }
-    out = itPose->second;
     pthread_mutex_unlock(&g_mutex);
-    return true;
-}
-
-// ====== SDK Callback ======
-static void DataHandler(sFrameOfMocapData* data, void* /*pUserData*/)
-{
-    if (!data) return;
-
-    pthread_mutex_lock(&g_mutex);
-
-    for (int i = 0; i < data->nRigidBodies; ++i)
-    {
-        const sRigidBodyData& rb = data->RigidBodies[i];
-
-        RigidPose p;
-        p.id = rb.ID;
-        p.x = rb.x; p.y = rb.y; p.z = rb.z;
-        p.qx = rb.qx; p.qy = rb.qy; p.qz = rb.qz; p.qw = rb.qw;
-        p.timestamp = data->iTimeStamp;
-        p.frame = data->iFrame;
-
-        g_latestPoseById[rb.ID] = p;
-    }
-
-    pthread_mutex_unlock(&g_mutex);
+    return false;
 }
