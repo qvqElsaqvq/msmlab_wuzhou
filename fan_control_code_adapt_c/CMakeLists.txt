@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22.1)
+cmake_minimum_required(VERSION 3.12)
 project(fan_control_code_adapt_c LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(thirdparty/serialPro EXCLUDE_FROM_ALL)
 
 find_package(Threads REQUIRED)
-find_package(Eigen3 REQUIRED)
+find_package(Eigen3 REQUIRED NO_MODULE)
 
 add_library(inih STATIC
         thirdparty/inih/ini.c
@@ -40,10 +40,13 @@ endforeach()
 # ✅ 先创建可执行文件 target（必须在 include/link 之前）
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 
+set_target_properties(${PROJECT_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
 # ✅ 你的 include
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${EIGEN3_INCLUDE_DIRS}
 )
 
 # ✅ 让 NokovSDKClient.h 识别 Linux（不改 SDK 头文件的最小办法）
@@ -51,9 +54,26 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE _LINUX)
 
 # ✅ 导入你本地的 nokov so（只用一种方式！）
 add_library(nokov_sdk SHARED IMPORTED GLOBAL)
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/libnokov_sdk.so")
+    message(FATAL_ERROR "libnokov_sdk.so not found at: ${CMAKE_CURRENT_SOURCE_DIR}/lib/libnokov_sdk.so")
+endif()
 set_target_properties(nokov_sdk PROPERTIES
         IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/libnokov_sdk.so"
 )
+
+find_path(PAHO_MQTTCPP_INCLUDE_DIR
+        NAMES mqtt/async_client.h
+        PATH_SUFFIXES include
+)
+find_library(PAHO_MQTTCPP_LIBRARY
+        NAMES paho-mqttpp3 libpaho-mqttpp3
+)
+find_library(PAHO_MQTTC_LIBRARY
+        NAMES paho-mqtt3as libpaho-mqtt3as
+)
+if (NOT PAHO_MQTTCPP_INCLUDE_DIR OR NOT PAHO_MQTTCPP_LIBRARY OR NOT PAHO_MQTTC_LIBRARY)
+    message(FATAL_ERROR "Paho MQTT C/C++ not found. Please install paho-mqttpp3 + paho-mqtt3as development packages (e.g. libpaho-mqttpp3-dev, libpaho-mqtt-dev).")
+endif()
 
 # ✅ 链接
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -61,9 +81,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         serialib
         inih
         Threads::Threads
+        Eigen3::Eigen
         nokov_sdk
-        paho-mqttpp3
-        paho-mqtt3as
+        ${PAHO_MQTTCPP_LIBRARY}
+        ${PAHO_MQTTC_LIBRARY}
 )
 
 # ✅ 运行时能找到你项目里的 libnokov_sdk.so（不想配 LD_LIBRARY_PATH 就加这个）
@@ -71,10 +92,22 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         BUILD_RPATH "\$ORIGIN/../lib"
 )
 
-# ✅ 复制配置文件到构建输出目录
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.ini
-               ${CMAKE_CURRENT_BINARY_DIR}/config.ini
-               COPYONLY)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_CURRENT_SOURCE_DIR}/lib/libnokov_sdk.so"
+                "${CMAKE_BINARY_DIR}/lib/libnokov_sdk.so"
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ${PAHO_MQTTCPP_INCLUDE_DIR}
+)
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/config.ini"
+        "${CMAKE_BINARY_DIR}/bin/config.ini"
+        COPYONLY)
 
 # 模块化架构说明
 message(STATUS "========================================")
