@@ -122,6 +122,9 @@ private:
      */
     void rateControl();
 
+    void publishWaitingStatus();
+    uint8_t calculateChecksum(const uint8_t* data, size_t length) const;
+
     // 系统组件
     std::unique_ptr<msmserial::MsMSerial> serial_;
     std::unique_ptr<GyroScope> gyro_;
@@ -149,6 +152,8 @@ private:
     // 循环控制
     std::chrono::milliseconds loop_period_{20}; // 50Hz
     std::chrono::steady_clock::time_point last_loop_time_;
+    std::chrono::steady_clock::time_point last_waiting_status_publish_time_{};
+    std::chrono::milliseconds waiting_status_publish_period_{1000};
 
     // 配置文件
     std::string config_path_;

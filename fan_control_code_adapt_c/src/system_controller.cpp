@@ -7,6 +7,8 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include <vector>
+#include <cstring>
 #include <unistd.h>
 
 SystemController::SystemController() {
@@ -96,7 +98,7 @@ bool SystemController::initializeMqtt() {
         mqtt_client_->set_callback(*mqtt_callback_);
         
         mqtt::connect_options connOpts;
-        connOpts.set_clean_session(false);
+        connOpts.set_clean_session(true);
         
         std::cout << "[SystemController] Connecting to MQTT..." << std::endl;
         mqtt_client_->connect(connOpts)->wait();
@@ -265,6 +267,7 @@ void SystemController::stop() {
 
 void SystemController::run() {
     last_loop_time_ = std::chrono::steady_clock::now();
+    last_waiting_status_publish_time_ = last_loop_time_ - waiting_status_publish_period_;
 
     std::cout << "[SystemController] Control loop started" << std::endl;
 
@@ -280,6 +283,7 @@ void SystemController::run() {
                         break;
                     }
                 }
+                publishWaitingStatus();
                 rateControl();
                 continue;
             }
@@ -360,6 +364,51 @@ void SystemController::rateControl() {
     }
 
     last_loop_time_ = std::chrono::steady_clock::now();
+}
+
+uint8_t SystemController::calculateChecksum(const uint8_t* data, size_t length) const {
+    uint8_t checksum = 0;
+    for (size_t i = 0; i < length; i++) {
+        checksum ^= data[i];
+    }
+    return checksum;
+}
+
+void SystemController::publishWaitingStatus() {
+    if (!mqtt_client_ || !mqtt_callback_) {
+        return;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last_waiting_status_publish_time_ < waiting_status_publish_period_) {
+        return;
+    }
+    last_waiting_status_publish_time_ = now;
+
+    Plane message{};
+    message.head.head = 0x4D47;
+    message.data.device_id = 0x05;
+    message.data.platform_type = 0xF4;
+    message.data.cmd_count = 0x00;
+    message.data.file_count = 0x00;
+    message.data.platform_status = 0x01;
+
+    uint8_t* data_ptr = reinterpret_cast<uint8_t*>(&message);
+    size_t data_length = sizeof(message.head) + sizeof(message.data);
+    message.tail.checksum = calculateChecksum(data_ptr, data_length);
+
+    try {
+        std::vector<uint8_t> payload(sizeof(message));
+        std::memcpy(payload.data(), &message, sizeof(message));
+        mqtt_client_->publish(
+            mqtt_callback_->plane_data_topic,
+            payload.data(),
+            payload.size(),
+            mqtt_callback_->QOS,
+            false
+        );
+    } catch (const mqtt::exception&) {
+    }
 }
 
 void SystemController::cleanup() {
