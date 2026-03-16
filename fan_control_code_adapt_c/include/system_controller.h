@@ -9,6 +9,7 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <fstream>
 #include "serial.h"
 #include "gyro_scope.h"
 #include "fan.h"
@@ -104,6 +105,8 @@ private:
      */
     bool initializeImu();
 
+    bool activateHardwareAndModules();
+
     /**
      * @brief 清理资源
      */
@@ -139,6 +142,7 @@ private:
     // 控制循环相关
     std::atomic<bool> running_{false};
     std::atomic<bool> emergency_stop_{false};
+    std::atomic<bool> hardware_active_{false};
     std::thread control_thread_;
     std::chrono::steady_clock::time_point start_time_;
     

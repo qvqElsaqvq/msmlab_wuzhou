@@ -33,75 +33,26 @@ bool SystemController::initialize(const std::string& config_path) {
     
     const auto& config = config_manager.getConfig();
     loop_period_ = std::chrono::milliseconds(config.control_loop_period_ms);
-    
-    // 2. 初始化硬件接口
-    if (!initializeHardware()) {
-        std::cerr << "[SystemController] Failed to initialize hardware" << std::endl;
-        return false;
-    }
-    
-    // 3. 初始化MQTT
+
+    // 2. 初始化MQTT
     if (!initializeMqtt()) {
         std::cerr << "[SystemController] Failed to initialize MQTT" << std::endl;
         return false;
     }
     
-    // 4. 初始化动捕系统
+    // 3. 初始化动捕系统
     if (!initializeMocap()) {
         std::cerr << "[SystemController] Failed to initialize mocap" << std::endl;
         return false;
     }
     
-    // 5. 初始化IMU
+    // 4. 初始化IMU
     if (!initializeImu()) {
         std::cerr << "[SystemController] Failed to initialize IMU" << std::endl;
         return false;
     }
-    
-    // 6. 初始化新模块
-    data_collector_ = std::make_unique<DataCollector>(*gyro_, *serial_);
-    if (!data_collector_->initialize()) {
-        std::cerr << "[SystemController] Failed to initialize data collector" << std::endl;
-        return false;
-    }
-    
-    control_mode_manager_ = std::make_unique<ControlModeManager>(
-        *mqtt_callback_,
-        *attitude_controller_,
-        *balancer_,
-        *docker_,
-        *fan_,
-        *wheel_,
-        *leadscrew_
-    );
-    
-    status_publisher_ = std::make_unique<StatusPublisher>(
-        *mqtt_client_,
-        *mqtt_callback_,
-        *data_collector_,
-        *control_mode_manager_,
-        *attitude_controller_,
-        *balancer_,
-        *fan_,
-        *wheel_
-    );
-    status_publisher_->initialize();
-    
-    // 7. 启动串口
-    serial_->spin(true);
-    
-    // 8. 初始化日志
-    if (logging_enabled_) {
-        log_csv_.open("attitude_compare.csv");
-        if (log_csv_.is_open()) {
-            log_csv_ << "ms,"
-                     << "gyro_roll,gyro_pitch,gyro_yaw,"
-                     << "mocap_roll,mocap_pitch,mocap_yaw,"
-                     << "new_roll,new_pitch,new_yaw\n";
-            log_csv_.flush();
-        }
-    }
-    
+
+    hardware_active_.store(false, std::memory_order_release);
     std::cout << "[SystemController] System initialized successfully" << std::endl;
     return true;
 }
@@ -161,6 +112,7 @@ bool SystemController::initializeMqtt() {
         mqtt_client_->subscribe(mqtt_callback_->wheel_test_topic, mqtt_callback_->QOS);
         mqtt_client_->subscribe(mqtt_callback_->balance_topic, mqtt_callback_->QOS);
         mqtt_client_->subscribe(mqtt_callback_->fan_calibration_topic, mqtt_callback_->QOS);
+        mqtt_client_->subscribe(mqtt_callback_->coop_dock_topic, mqtt_callback_->QOS);
         
         std::cout << "[SystemController] MQTT initialized and connected" << std::endl;
         return true;
@@ -181,6 +133,70 @@ bool SystemController::initializeImu() {
     const auto& config = ConfigManager::getInstance().getConfig();
     
     // IMU在DataCollector中初始化，这里只返回true
+    return true;
+}
+
+bool SystemController::activateHardwareAndModules() {
+    if (hardware_active_.load(std::memory_order_acquire)) {
+        return true;
+    }
+
+    if (!initializeHardware()) {
+        std::cerr << "[SystemController] Failed to initialize hardware" << std::endl;
+        return false;
+    }
+
+    data_collector_ = std::make_unique<DataCollector>(*gyro_, *serial_);
+    if (!data_collector_->initialize()) {
+        std::cerr << "[SystemController] Failed to initialize data collector" << std::endl;
+        serial_.reset();
+        gyro_.reset();
+        fan_.reset();
+        wheel_.reset();
+        leadscrew_.reset();
+        attitude_controller_.reset();
+        balancer_.reset();
+        docker_.reset();
+        return false;
+    }
+
+    control_mode_manager_ = std::make_unique<ControlModeManager>(
+        *mqtt_callback_,
+        *attitude_controller_,
+        *balancer_,
+        *docker_,
+        *fan_,
+        *wheel_,
+        *leadscrew_
+    );
+
+    status_publisher_ = std::make_unique<StatusPublisher>(
+        *mqtt_client_,
+        *mqtt_callback_,
+        *data_collector_,
+        *control_mode_manager_,
+        *attitude_controller_,
+        *balancer_,
+        *fan_,
+        *wheel_
+    );
+    status_publisher_->initialize();
+
+    serial_->spin(true);
+
+    if (logging_enabled_) {
+        log_csv_.open("attitude_compare.csv");
+        if (log_csv_.is_open()) {
+            log_csv_ << "ms,"
+                     << "gyro_roll,gyro_pitch,gyro_yaw,"
+                     << "mocap_roll,mocap_pitch,mocap_yaw,"
+                     << "new_roll,new_pitch,new_yaw\n";
+            log_csv_.flush();
+        }
+    }
+
+    hardware_active_.store(true, std::memory_order_release);
+    std::cout << "[SystemController] MCU communication activated" << std::endl;
     return true;
 }
 
@@ -254,6 +270,19 @@ void SystemController::run() {
 
     while (running_ && !emergency_stop_) {
         try {
+            if (!hardware_active_.load(std::memory_order_acquire)) {
+                if (mqtt_callback_ && mqtt_callback_->hasTaskCommandReceived()) {
+                    std::cout << "[SystemController] Task command received, activating MCU communication..." << std::endl;
+                    if (!activateHardwareAndModules()) {
+                        std::cerr << "[SystemController] Failed to activate MCU communication" << std::endl;
+                        emergency_stop_ = true;
+                        running_ = false;
+                        break;
+                    }
+                }
+                rateControl();
+                continue;
+            }
             controlLoopIteration();
             rateControl();
         } catch (const std::exception& e) {
@@ -361,7 +390,9 @@ bool SystemController::isRunning() const {
 
 void SystemController::emergencyStop() {
     emergency_stop_ = true;
-    control_mode_manager_->emergencyStop();
+    if (control_mode_manager_) {
+        control_mode_manager_->emergencyStop();
+    }
     std::cout << "[SystemController] Emergency stop activated" << std::endl;
 }
 
