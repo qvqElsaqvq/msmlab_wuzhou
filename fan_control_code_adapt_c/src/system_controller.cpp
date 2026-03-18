@@ -115,6 +115,7 @@ bool SystemController::initializeMqtt() {
         mqtt_client_->subscribe(mqtt_callback_->balance_topic, mqtt_callback_->QOS);
         mqtt_client_->subscribe(mqtt_callback_->fan_calibration_topic, mqtt_callback_->QOS);
         mqtt_client_->subscribe(mqtt_callback_->coop_dock_topic, mqtt_callback_->QOS);
+        mqtt_client_->subscribe("attitude/activate", mqtt_callback_->QOS);
         
         std::cout << "[SystemController] MQTT initialized and connected" << std::endl;
         return true;
@@ -214,16 +215,14 @@ bool SystemController::start() {
     // 启动动捕系统
     const auto& config = ConfigManager::getInstance().getConfig();
     if (Nokov_Start(config.mocap_ip.c_str()) != 0) {
-        std::cerr << "[SystemController] Failed to start Nokov bridge" << std::endl;
-        running_ = false;
-        return false;
-    }
-    std::cout << "[SystemController] Nokov bridge started" << std::endl;
+        std::cerr << "[SystemController] Failed to start Nokov bridge, continue without mocap" << std::endl;
+    } else {
+        std::cout << "[SystemController] Nokov bridge started" << std::endl;
 
-    // 等待 Nokov SDK 稳定（添加延迟以避免 SDK 线程崩溃）
-    std::cout << "[SystemController] Waiting for Nokov SDK to stabilize..." << std::endl;
-    usleep(1000000); // 等待1秒
-    std::cout << "[SystemController] Nokov SDK stabilized" << std::endl;
+        std::cout << "[SystemController] Waiting for Nokov SDK to stabilize..." << std::endl;
+        usleep(1000000);
+        std::cout << "[SystemController] Nokov SDK stabilized" << std::endl;
+    }
 
     // 启动控制线程
     control_thread_ = std::thread(&SystemController::run, this);

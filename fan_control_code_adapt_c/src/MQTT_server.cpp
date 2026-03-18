@@ -107,6 +107,14 @@ CallBack::~CallBack()
 void CallBack::message_arrived(mqtt::const_message_ptr msg)
 {
     const bool is_retained = msg->is_retained();
+    if (msg->get_topic() == "attitude/activate")
+    {
+        std::cout << "On topic: " << msg->get_topic() << std::endl;
+        if (!is_retained) {
+            task_command_received_.store(true, std::memory_order_release);
+        }
+        return;
+    }
     if (msg->get_topic() == "attitude/basic")
     {
         std::cout << "On topic: " << msg->get_topic() << std::endl;
@@ -157,9 +165,6 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         if_receive_coop_dock_ = false; // 退出对接模式
 
         if_power_off_ = false;
-        if (!is_retained) {
-            task_command_received_.store(true, std::memory_order_release);
-        }
     }
     else if (msg->get_topic() == "attitude/trajectory")
     {
@@ -190,9 +195,6 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             << " traj_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.traj_id
             << " start: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_trajectory_->data.start << "\n";
         // delete d;
-        if (!is_retained) {
-            task_command_received_.store(true, std::memory_order_release);
-        }
     }
     else if (msg->get_topic() == "attitude/power")
     {
@@ -220,14 +222,18 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
 
             std::cout << "------------- 指令关机 -----------" << std::endl;
         }
+        else
+        {
+            if_power_off_ = false;
+            if (!is_retained) {
+                task_command_received_.store(true, std::memory_order_release);
+            }
+        }
 
         std::cout << "----- CmdPower arrived -----\n"
             << " device_id: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.device_id
             << " cmd_type: " << std::hex << std::setfill('0') << std::setw(2) << (int)cmd_power_->data.cmd_type
             << " cmd_data: " << std::hex << std::setfill('0') << std::setw(4) << (int)cmd_power_->data.cmd_data << "\n";
-        if (!is_retained && cmd_power_->data.cmd_data != 0) {
-            task_command_received_.store(true, std::memory_order_release);
-        }
     }
     else if (msg->get_topic() == "attitude/fan_torque")
     {
@@ -268,9 +274,6 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
          if_receive_coop_dock_ = false;
 
          if_power_off_ = false;
-         if (!is_retained) {
-             task_command_received_.store(true, std::memory_order_release);
-         }
     }
     else if (msg->get_topic() == "attitude/fan_velocity")
     {
@@ -306,9 +309,6 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         if_receive_coop_dock_ = false;
 
         if_power_off_ = false;
-        if (!is_retained) {
-            task_command_received_.store(true, std::memory_order_release);
-        }
     }
     else if (msg->get_topic() == "attitude/wheel")
     {
@@ -335,9 +335,6 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
             << " wheel_rpm: " << std::hex << std::setfill('0') << std::setw(4) << (int)wheel_test_->data.wheel_rpm
             << "\n";
         if_power_off_ = false;
-        if (!is_retained) {
-            task_command_received_.store(true, std::memory_order_release);
-        }
     }
     else if (msg->get_topic() == "attitude/balance")
     {
@@ -394,9 +391,6 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
          if_receive_fan_torque_ = false;
          if_receive_coop_dock_ = false;
          if_power_off_ = false;
-         if (!is_retained) {
-             task_command_received_.store(true, std::memory_order_release);
-         }
      }
     else if (msg->get_topic() == "attitude/calibration1")
     {
@@ -435,9 +429,6 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
                 if_need_fan_calibration_ = true;
             else
                 if_need_fan_calibration_ = false;
-        }
-        if (!is_retained) {
-            task_command_received_.store(true, std::memory_order_release);
         }
     }
  	else if (msg->get_topic() == "attitude/calibration")
@@ -501,9 +492,6 @@ void CallBack::message_arrived(mqtt::const_message_ptr msg)
         if_receive_fan_torque_ = false;
         if_receive_fan_velocity_ = false;
         if_need_balancing_ = false;
-        if (!is_retained) {
-            task_command_received_.store(true, std::memory_order_release);
-        }
     }
 }
 
