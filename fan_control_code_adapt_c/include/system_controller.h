@@ -115,14 +115,14 @@ private:
     /**
      * @brief 控制循环迭代
      */
-    void controlLoopIteration();
+    void controlLoopIteration(const SensorData& sensor_data);
 
     /**
      * @brief 速率控制，保证固定频率
      */
     void rateControl();
 
-    void publishWaitingStatus();
+    void publishWaitingStatus(const SensorData& sensor_data);
     uint8_t calculateChecksum(const uint8_t* data, size_t length) const;
 
     // 系统组件

@@ -54,6 +54,20 @@ bool SystemController::initialize(const std::string& config_path) {
         return false;
     }
 
+    if (!initializeHardware()) {
+        std::cerr << "[SystemController] Failed to initialize hardware" << std::endl;
+        return false;
+    }
+
+    serial_->setTxEnabled(false);
+    serial_->spin(true);
+
+    data_collector_ = std::make_unique<DataCollector>(*gyro_, *serial_);
+    if (!data_collector_->initialize()) {
+        std::cerr << "[SystemController] Failed to initialize data collector" << std::endl;
+        return false;
+    }
+
     hardware_active_.store(false, std::memory_order_release);
     std::cout << "[SystemController] System initialized successfully" << std::endl;
     return true;
@@ -144,24 +158,7 @@ bool SystemController::activateHardwareAndModules() {
         return true;
     }
 
-    if (!initializeHardware()) {
-        std::cerr << "[SystemController] Failed to initialize hardware" << std::endl;
-        return false;
-    }
-
-    data_collector_ = std::make_unique<DataCollector>(*gyro_, *serial_);
-    if (!data_collector_->initialize()) {
-        std::cerr << "[SystemController] Failed to initialize data collector" << std::endl;
-        serial_.reset();
-        gyro_.reset();
-        fan_.reset();
-        wheel_.reset();
-        leadscrew_.reset();
-        attitude_controller_.reset();
-        balancer_.reset();
-        docker_.reset();
-        return false;
-    }
+    serial_->setTxEnabled(true);
 
     control_mode_manager_ = std::make_unique<ControlModeManager>(
         *mqtt_callback_,
@@ -184,8 +181,6 @@ bool SystemController::activateHardwareAndModules() {
         *wheel_
     );
     status_publisher_->initialize();
-
-    serial_->spin(true);
 
     if (logging_enabled_) {
         log_csv_.open("attitude_compare.csv");
@@ -272,7 +267,14 @@ void SystemController::run() {
 
     while (running_ && !emergency_stop_) {
         try {
+            if (data_collector_ && !data_collector_->update()) {
+                std::cerr << "[SystemController] Failed to update sensor data" << std::endl;
+            }
+
+            const auto& sensor_data = data_collector_->getSensorData();
+
             if (!hardware_active_.load(std::memory_order_acquire)) {
+                publishWaitingStatus(sensor_data);
                 if (mqtt_callback_ && mqtt_callback_->hasTaskCommandReceived()) {
                     std::cout << "[SystemController] Task command received, activating MCU communication..." << std::endl;
                     if (!activateHardwareAndModules()) {
@@ -282,11 +284,10 @@ void SystemController::run() {
                         break;
                     }
                 }
-                publishWaitingStatus();
                 rateControl();
                 continue;
             }
-            controlLoopIteration();
+            controlLoopIteration(sensor_data);
             rateControl();
         } catch (const std::exception& e) {
             std::cerr << "[SystemController] Control loop error: " << e.what() << std::endl;
@@ -300,23 +301,13 @@ void SystemController::run() {
     std::cout << "[SystemController] Control loop stopped" << std::endl;
 }
 
-void SystemController::controlLoopIteration() {
-    // 1. 更新传感器数据
-    if (!data_collector_->update()) {
-        std::cerr << "[SystemController] Failed to update sensor data" << std::endl;
-        return;
-    }
-
-    // 2. 获取当前传感器数据
-    auto sensor_data = data_collector_->getSensorData();
-
-    // 3. 更新控制模式
+void SystemController::controlLoopIteration(const SensorData& sensor_data) {
     control_mode_manager_->update(sensor_data);
 
-    // 4. 更新状态发布器
+    // 更新状态发布器
     status_publisher_->update();
 
-    // 5. 记录日志（如果启用）
+    // 记录日志（如果启用）
     if (logging_enabled_ && log_csv_.is_open()) {
         auto now = std::chrono::steady_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -373,7 +364,7 @@ uint8_t SystemController::calculateChecksum(const uint8_t* data, size_t length) 
     return checksum;
 }
 
-void SystemController::publishWaitingStatus() {
+void SystemController::publishWaitingStatus(const SensorData& sensor_data) {
     if (!mqtt_client_ || !mqtt_callback_) {
         return;
     }
@@ -391,6 +382,13 @@ void SystemController::publishWaitingStatus() {
     message.data.cmd_count = 0x00;
     message.data.file_count = 0x00;
     message.data.platform_status = 0x01;
+
+    message.data.wx = static_cast<int16_t>(sensor_data.gyro.angular_velocity.x() * 100.0);
+    message.data.wy = static_cast<int16_t>(sensor_data.gyro.angular_velocity.y() * 100.0);
+    message.data.wz = static_cast<int16_t>(sensor_data.gyro.angular_velocity.z() * 100.0);
+    message.data.roll = static_cast<int16_t>(sensor_data.gyro.attitude.x() * 100.0);
+    message.data.pitch = static_cast<int16_t>(sensor_data.gyro.attitude.y() * 100.0);
+    message.data.yaw = static_cast<int16_t>(sensor_data.gyro.attitude.z() * 100.0);
 
     uint8_t* data_ptr = reinterpret_cast<uint8_t*>(&message);
     size_t data_length = sizeof(message.head) + sizeof(message.data);
