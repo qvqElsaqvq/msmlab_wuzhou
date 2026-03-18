@@ -6,6 +6,8 @@
 #include <iostream>
 #include <csignal>
 #include <atomic>
+#include <thread>
+#include <chrono>
 #include "system_controller.h"
 
 // 全局系统控制器实例
@@ -14,12 +16,8 @@ std::atomic<bool> running{true};
 
 // 信号处理函数
 void signalHandler(int signal) {
-    std::cout << "\n[Main] Received signal " << signal << ", shutting down..." << std::endl;
-    running = false;
-    
-    if (system_controller) {
-        system_controller->stop();
-    }
+    (void)signal;
+    running.store(false, std::memory_order_relaxed);
 }
 
 // 打印帮助信息
