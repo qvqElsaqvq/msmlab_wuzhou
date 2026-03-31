@@ -19,8 +19,7 @@ private:
 
     bool if_power_off_;
 
-    // 当前质量块位置 [X, Y, Z]
-    std::vector<int16_t> current_positions_{0, 0, 0};
+    std::vector<int16_t> last_step_{0, 0, 0};
 
 public:
     explicit LeadScrewController(msmserial::MsMSerial& serial);
@@ -32,9 +31,6 @@ public:
      */
     void moveTo(const std::vector<int16_t>& location);
 
-    /*
-     * 获取当前质量块位置 [X, Y, Z]
-     */
     const std::vector<int16_t>& getCurrentPositions() const;
 
     void setIfPowerOff( bool if_power_off );

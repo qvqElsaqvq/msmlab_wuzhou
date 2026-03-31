@@ -268,7 +268,7 @@ void ControlModeManager::executeBalancingMode() {
         const auto& config = ConfigManager::getInstance().getConfig();
         std::vector<int16_t> action{static_cast<int16_t>(config.lead_screw_z_init_pos)};
         leadscrew_.moveTo(action); // 先降 Z 轴质量块
-        std::cout << std::dec << "[调平阶段1] Z轴质量块移动到位置: " << config.lead_screw_z_init_pos << std::endl;
+        std::cout << std::dec << "[调平阶段1] Z轴质量块移动步长: " << config.lead_screw_z_init_pos << std::endl;
         current_balance_status_ = true;
         balancing_in_progress_ = true;
     }
@@ -285,8 +285,7 @@ void ControlModeManager::executeBalancingMode() {
     auto current_torque = attitude_controller_.getTorque();
     auto current_attitude = attitude_controller_.getCurrentGyroAttitude();
 
-    // 获取质量块位置
-    const auto& mass_positions = leadscrew_.getCurrentPositions();
+    const auto& mass_steps = leadscrew_.getCurrentPositions();
 
     // 统一输出调平状态（每3秒输出一次）
     static int balance_log_counter = 0;
@@ -299,8 +298,8 @@ void ControlModeManager::executeBalancingMode() {
                   << current_attitude.y() << ", " << current_attitude.z() << ") | "
                   << "力矩(Tx/Ty/Tz): (" << current_torque.x() << ", "
                   << current_torque.y() << ", " << current_torque.z() << ") | "
-                  << "质量块位置(X/Y/Z): (" << mass_positions[0] << ", "
-                  << mass_positions[1] << ", " << mass_positions[2] << ")" << std::endl;
+                  << "质量块步长(X/Y/Z): (" << mass_steps[0] << ", "
+                  << mass_steps[1] << ", " << mass_steps[2] << ")" << std::endl;
         balance_log_counter = 0;
     }
 
@@ -316,8 +315,8 @@ void ControlModeManager::executeBalancingMode() {
                   << current_attitude.y() << ", " << current_attitude.z() << ")\n";
         std::cout << "[调平完成] 最终力矩(Tx/Ty/Tz): (" << current_torque.x() << ", "
                   << current_torque.y() << ", " << current_torque.z() << ")\n";
-        std::cout << "[调平完成] 最终质量块位置(X/Y/Z): (" << mass_positions[0] << ", "
-                  << mass_positions[1] << ", " << mass_positions[2] << ")\n";
+        std::cout << "[调平完成] 最终质量块步长(X/Y/Z): (" << mass_steps[0] << ", "
+                  << mass_steps[1] << ", " << mass_steps[2] << ")\n";
         mqtt_callback_.setFlagBalance(true);
         current_balance_status_ = false;
         balancing_in_progress_ = false;
