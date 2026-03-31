@@ -268,7 +268,7 @@ void ControlModeManager::executeBalancingMode() {
         const auto& config = ConfigManager::getInstance().getConfig();
         std::vector<int16_t> action{static_cast<int16_t>(config.lead_screw_z_init_pos)};
         leadscrew_.moveTo(action); // 先降 Z 轴质量块
-        std::cout << "[调平阶段1] Z轴质量块移动到位置: " << config.lead_screw_z_init_pos << std::endl;
+        std::cout << std::dec << "[调平阶段1] Z轴质量块移动到位置: " << config.lead_screw_z_init_pos << std::endl;
         current_balance_status_ = true;
         balancing_in_progress_ = true;
     }
@@ -292,6 +292,7 @@ void ControlModeManager::executeBalancingMode() {
     static int balance_log_counter = 0;
     if (++balance_log_counter >= 150) { // 50Hz * 3秒 = 150次
         // 输出实时状态
+        std::cout << std::dec;
         std::cout << "[" << stage_status.stage_name << "] "
                   << stage_status.state << " | "
                   << "姿态(roll/pitch/yaw): (" << current_attitude.x() << ", "
@@ -309,6 +310,7 @@ void ControlModeManager::executeBalancingMode() {
     }
 
     if (if_finish_balancing_) {
+        std::cout << std::dec;
         std::cout << "[调平完成] 自动调平算法执行完成\n";
         std::cout << "[调平完成] 最终姿态(roll/pitch/yaw): (" << current_attitude.x() << ", "
                   << current_attitude.y() << ", " << current_attitude.z() << ")\n";
