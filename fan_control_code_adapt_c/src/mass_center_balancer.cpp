@@ -15,7 +15,7 @@ MassCenterBalancer::MassCenterBalancer(GyroScope &gyro, Fan &fan, LeadScrewContr
     dwell_time_ = 10.0;
     sample_time_ = 10.0;
     settle_wait_ = 0.02;
-    waiting_time_ = 8.0;
+    waiting_time_ = 5.0;
 
     t_enter_ = -1;
     sample_t_enter_ = -1;
@@ -101,8 +101,8 @@ void MassCenterBalancer::balance_both_axes_fan() {
     double torque_xy_threshold = 7.0;
 
     tol_deg_ = 0.1;
-    dwell_time_ = 10.0; // 稳态保持计时时间
-    sample_time_ = 8.0; // 采样时间
+    dwell_time_ = 6.0; // 稳态保持计时时间
+    sample_time_ = 4.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
     // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
@@ -200,7 +200,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
     double prev_dir_z = 0; // 方向
     int raw_sign = 0;
 
-    tol_deg_ = 0.1;
+    tol_deg_ = 0.2;
     dwell_time_ = 8.0; // 稳态保持计时时间
     sample_time_ = 6.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
@@ -402,7 +402,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                 {
                     // std::cout << "z_err_angle_t_enter: " << z_err_angle_t_enter_ << std::endl;
                     // std::cout << "z_target_angle_: " << z_target_angle_ << std::endl;
-                    if (z_err_angle_t_enter_ == -1 && fabs(z_target_angle_ - pitch) >= 0.3) {
+                    if (z_err_angle_t_enter_ == -1 && fabs(z_target_angle_ - pitch) >= 0.2) {
                         z_err_angle_t_enter_ = clock();
                         z_err_angle_.clear();
                     }
@@ -416,14 +416,14 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                             } else
                                 z_err_angle_mean_ = 0.0;
                             // std::cout << "z_err_angle_mean: " << z_err_angle_mean_ << std::endl;
-                            if (fabs(z_err_angle_mean_) >= 0.3) // 移动质量块
+                            if (fabs(z_err_angle_mean_) >= 0.2) // 移动质量块
                             {
                                 std::vector<int16_t> action;
                                 int step = int(z_err_angle_mean_ * 4000);
                                 if (step > 0) // 限幅
-                                    step = std::min(30000, step);
+                                    step = std::min(8000, step);
                                 else if (step < 0)
-                                    step = std::max(-30000, step);
+                                    step = std::max(-8000, step);
                                 action.push_back(step);
                                 leadscrew_.moveTo(action);
                                 waiting_after_moving_ = true;
