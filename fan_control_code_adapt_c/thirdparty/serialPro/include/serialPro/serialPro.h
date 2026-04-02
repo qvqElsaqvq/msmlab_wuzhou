@@ -10,6 +10,7 @@
 #include <atomic>
 #include <string>
 #include <thread>
+#include <chrono>
 
 #include "msg_serialize.h"
 #include "serialib.h"
@@ -44,7 +45,7 @@ namespace sp {
                 if (len > 0) {
                     listener.push(buffer, len);
                 } else if (len < 0) {
-                    throw SerialException("Serial Port Read ERROR!");
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 }
             }
         }
@@ -93,9 +94,19 @@ namespace sp {
         void spin(bool background) {
             if (background) {
                 running = true;
-                readThread = std::thread(&serialPro::readLoop, this);
+                readThread = std::thread([this]() {
+                    try {
+                        readLoop();
+                    } catch (...) {
+                        running = false;
+                    }
+                });
             } else {
-                readLoop();
+                try {
+                    readLoop();
+                } catch (...) {
+                    running = false;
+                }
             }
         }
 
@@ -112,7 +123,7 @@ namespace sp {
                 if (len > 0) {
                     listener.push(buffer, len);
                 } else if (len < 0) {
-                    throw SerialException("Serial Port Read ERROR!");
+                    break;
                 }
             }
         }

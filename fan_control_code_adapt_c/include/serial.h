@@ -10,6 +10,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <atomic>
 #include "msg_serialize.h"
 
 namespace msmserial
@@ -86,11 +87,25 @@ namespace msmserial
 
         using sp::serialPro<Head, Tail>::operator=;
 
+        void setTxEnabled(bool enabled) {
+            tx_enabled_.store(enabled, std::memory_order_release);
+        }
+
+        [[nodiscard]] bool isTxEnabled() const {
+            return tx_enabled_.load(std::memory_order_acquire);
+        }
+
         // 发送数据
         template<typename T>
         bool write(uint8_t id, const T &t) {
+            if (!isTxEnabled()) {
+                return false;
+            }
             return sp::serialPro<Head, Tail>::write(Head{.command = id}, t, Tail{});
         }
+
+    private:
+        std::atomic<bool> tx_enabled_{false};
     };
 }
 

@@ -23,6 +23,7 @@ void LeadScrewController::moveTo(const std::vector<int16_t>& location)
     if (!if_power_off_)
     {
         std::cout << ">>>>>>>>>>>location size: " << location.size() << std::endl;
+        last_step_.assign({0, 0, 0});
         LeadScrewControl leadscrew_control{
             .device_id = 0x3A,
             .dist_x = 0,
@@ -37,10 +38,8 @@ void LeadScrewController::moveTo(const std::vector<int16_t>& location)
             // std::cout << "[LeadScrewController] moving XY: " << std::endl;
             // std::cout << "x=" << std::dec << leadscrew_control.dist_x
             // << ", y=" << std::dec << leadscrew_control.dist_y << std::endl;
-
-            // 更新当前位置
-            current_positions_[0] += location[0];
-            current_positions_[1] += location[1];
+            last_step_[0] = location[0];
+            last_step_[1] = location[1];
         }
         else if (location.size() == 1) // Z
         {
@@ -48,16 +47,14 @@ void LeadScrewController::moveTo(const std::vector<int16_t>& location)
             ser_.write(0x04, leadscrew_control);
             // std::cout << "[LeadScrewController] moving Z: " << std::endl;
             // std::cout << "z=" << std::dec << leadscrew_control.dist_z << std::endl;
-
-            // 更新当前位置
-            current_positions_[2] += location[0];
+            last_step_[2] = location[0];
         }
     }
 }
 
 const std::vector<int16_t>& LeadScrewController::getCurrentPositions() const
 {
-    return current_positions_;
+    return last_step_;
 }
 
 void LeadScrewController::setIfPowerOff(bool if_power_off)

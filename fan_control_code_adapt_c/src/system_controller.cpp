@@ -88,6 +88,7 @@ bool SystemController::initialize(const std::string& config_path) {
     status_publisher_->initialize();
     
     // 7. 启动串口
+    serial_->setTxEnabled(false);
     serial_->spin(true);
     
     // 8. 初始化日志
@@ -145,7 +146,7 @@ bool SystemController::initializeMqtt() {
         mqtt_client_->set_callback(*mqtt_callback_);
         
         mqtt::connect_options connOpts;
-        connOpts.set_clean_session(false);
+        connOpts.set_clean_session(true);
         
         std::cout << "[SystemController] Connecting to MQTT..." << std::endl;
         mqtt_client_->connect(connOpts)->wait();
@@ -161,7 +162,10 @@ bool SystemController::initializeMqtt() {
         mqtt_client_->subscribe(mqtt_callback_->wheel_test_topic, mqtt_callback_->QOS);
         mqtt_client_->subscribe(mqtt_callback_->balance_topic, mqtt_callback_->QOS);
         mqtt_client_->subscribe(mqtt_callback_->fan_calibration_topic, mqtt_callback_->QOS);
+        mqtt_client_->subscribe(mqtt_callback_->fan_calibration_topic, mqtt_callback_->QOS);
         mqtt_client_->subscribe(mqtt_callback_->fan_calibration_topic1, mqtt_callback_->QOS);
+        mqtt_client_->subscribe(mqtt_callback_->coop_dock_topic, mqtt_callback_->QOS);
+        mqtt_client_->subscribe("attitude/activate", mqtt_callback_->QOS);
         
         std::cout << "[SystemController] MQTT initialized and connected" << std::endl;
         return true;
@@ -255,6 +259,10 @@ void SystemController::run() {
 
     while (running_ && !emergency_stop_) {
         try {
+            if (mqtt_callback_ && serial_ && !serial_->isTxEnabled() && mqtt_callback_->hasTaskCommandReceived()) {
+                std::cout << "[SystemController] Task command received, enabling MCU TX..." << std::endl;
+                serial_->setTxEnabled(true);
+            }
             controlLoopIteration();
             rateControl();
         } catch (const std::exception& e) {
