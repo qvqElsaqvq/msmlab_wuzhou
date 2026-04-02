@@ -86,6 +86,9 @@ private:
     Fan& fan_;
     AttitudePDController& controller_;
 
+    mutable bool event_dirty_;
+    mutable std::string event_detail_;
+
     // 配置参数
     const std::array<uint8_t,3> axis_ids_{0x04,0x05,0x06};
     double tol_deg_;
@@ -103,6 +106,8 @@ private:
     /* 力矩平均值 */
     double tx_mean_;
     double ty_mean_;
+    int prev_dir_x_;
+    int prev_dir_y_;
 
     /* 时间相关起始点，未计时为-1 */
     double t_enter_;  // 判断稳态进入时间
