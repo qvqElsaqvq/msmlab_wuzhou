@@ -14,6 +14,10 @@ inline void pushEvent(bool& dirty, std::string& detail, const std::string& msg) 
         detail = msg;
     dirty = true;
 }
+
+inline double nowSec() {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 }
 
 MassCenterBalancer::MassCenterBalancer(GyroScope &gyro, Fan &fan, LeadScrewController &lscrew_controller,
@@ -193,7 +197,7 @@ void MassCenterBalancer::balance_both_axes_fan() {
                       " Y=" + std::to_string(int(steps[1])));
             if_in_steady_state_ = false;
             waiting_after_moving_ = true;
-            waiting_t_enter_ = clock();
+            waiting_t_enter_ = nowSec();
         }
     }
 }
@@ -354,7 +358,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
             if_finish_testing_ty_ = false;
             if_in_steady_state_ = false;
             waiting_after_moving_ = true;
-            waiting_t_enter_ = clock();
+            waiting_t_enter_ = nowSec();
         }
     }
 
@@ -368,7 +372,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
         if_begin_sampling_ = false;
 
         if (waiting_after_moving_) {
-            if ((clock() - waiting_t_enter_) / CLOCKS_PER_SEC >= waiting_time_) {
+            if (waiting_t_enter_ >= 0.0 && (nowSec() - waiting_t_enter_) >= waiting_time_) {
                 waiting_after_moving_ = false;
                 pushEvent(event_dirty_, event_detail_, "调后等待时间结束");
                 t_enter_ = -1;
@@ -403,10 +407,10 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                 if (t_enter_ == -1) {
                     z_err_angle_.clear();
                     z_err_angle_t_enter_ = -1;
-                    t_enter_ = clock();
+                    t_enter_ = nowSec();
                     pushEvent(event_dirty_, event_detail_, "开始稳态计时");
                 }
-                if ((clock() - t_enter_) / CLOCKS_PER_SEC >= dwell_time_) {
+                if ((nowSec() - t_enter_) >= dwell_time_) {
                     if_in_steady_state_ = true;
                     if_begin_sampling_ = true;
                     pushEvent(event_dirty_, event_detail_, "进入稳态");
@@ -421,12 +425,12 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                     // std::cout << "z_err_angle_t_enter: " << z_err_angle_t_enter_ << std::endl;
                     // std::cout << "z_target_angle_: " << z_target_angle_ << std::endl;
                     if (z_err_angle_t_enter_ == -1 && fabs(z_target_angle_ - pitch) >= 0.3) {
-                        z_err_angle_t_enter_ = clock();
+                        z_err_angle_t_enter_ = nowSec();
                         z_err_angle_.clear();
                     }
                     if (z_err_angle_t_enter_ != -1) {
                         z_err_angle_.push_back(z_target_angle_ - pitch);
-                        if ((clock() - z_err_angle_t_enter_) / CLOCKS_PER_SEC >= z_err_angle_t_threshold_) {
+                        if ((nowSec() - z_err_angle_t_enter_) >= z_err_angle_t_threshold_) {
                             if (z_err_angle_.size() > 0) {
                                 z_err_angle_mean_ = std::accumulate(z_err_angle_.begin(), z_err_angle_.end(), 0.0)
                                                     / z_err_angle_.size();
@@ -444,7 +448,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                                 action.push_back(step);
                                 leadscrew_.moveTo(action);
                                 waiting_after_moving_ = true;
-                                waiting_t_enter_ = clock();
+                                waiting_t_enter_ = nowSec();
                                 pushEvent(event_dirty_, event_detail_,
                                           std::string("Z 轴非稳态纠偏: err_mean=") + std::to_string(z_err_angle_mean_) +
                                           " step=" + std::to_string(step));
@@ -457,12 +461,12 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                 {
                     // X
                     if (x_err_angle_t_enter_ == -1 && abs(x_target_angle_ - roll) >= 0.7) {
-                        x_err_angle_t_enter_ = clock();
+                        x_err_angle_t_enter_ = nowSec();
                         x_err_angle_.clear();
                     }
                     if (x_err_angle_t_enter_ != -1) {
                         x_err_angle_.push_back(x_target_angle_ - roll);
-                        if ((clock() - x_err_angle_t_enter_) / CLOCKS_PER_SEC >= x_err_angle_t_threshold_) {
+                        if ((nowSec() - x_err_angle_t_enter_) >= x_err_angle_t_threshold_) {
                             if (x_err_angle_.size() > 0)
                                 x_err_angle_mean_ = std::accumulate(x_err_angle_.begin(), x_err_angle_.end(), 0.0)
                                                     / x_err_angle_.size();
@@ -476,7 +480,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                                 leadscrew_.moveTo(action);
 
                                 waiting_after_moving_ = true;
-                                waiting_t_enter_ = clock();
+                                waiting_t_enter_ = nowSec();
                                 pushEvent(event_dirty_, event_detail_,
                                           std::string("X 轴非稳态纠偏: err_mean=") + std::to_string(x_err_angle_mean_) +
                                           " step=" + std::to_string(int(-1500 * x_err_angle_mean_)));
@@ -487,12 +491,12 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                     }
                     // Y
                     if (y_err_angle_t_enter_ == -1 && abs(y_target_angle_ - pitch) >= 0.4) {
-                        y_err_angle_t_enter_ = clock();
+                        y_err_angle_t_enter_ = nowSec();
                         y_err_angle_.clear();
                     }
                     if (y_err_angle_t_enter_ != -1) {
                         y_err_angle_.push_back(y_target_angle_ - pitch);
-                        if ((clock() - y_err_angle_t_enter_) / CLOCKS_PER_SEC >= y_err_angle_t_threshold_) {
+                        if ((nowSec() - y_err_angle_t_enter_) >= y_err_angle_t_threshold_) {
                             if (y_err_angle_.size() > 0)
                                 y_err_angle_mean_ = std::accumulate(y_err_angle_.begin(), y_err_angle_.end(), 0.0)
                                                     / y_err_angle_.size();
@@ -506,7 +510,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                                 leadscrew_.moveTo(action);
 
                                 waiting_after_moving_ = true;
-                                waiting_t_enter_ = clock();
+                                waiting_t_enter_ = nowSec();
                                 pushEvent(event_dirty_, event_detail_,
                                           std::string("Y 轴非稳态纠偏: err_mean=") + std::to_string(y_err_angle_mean_) +
                                           " step=" + std::to_string(int(1500 * y_err_angle_mean_)));
@@ -521,7 +525,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
     }
 
     if (if_begin_sampling_) {
-        sample_t_enter_ = clock();
+        sample_t_enter_ = nowSec();
         last_roll_ = 0.0;
         last_pitch_ = 0.0;
         last_yaw_ = 0.0;
@@ -532,7 +536,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
     }
     // 稳态采样控制输出（平均值）
     if (if_in_steady_state_) {
-        if ((clock() - sample_t_enter_) / CLOCKS_PER_SEC < sample_time_) {
+        if ((nowSec() - sample_t_enter_) < sample_time_) {
             // 这里直接读控制器上一次输出的扭矩
             auto tau = controller_.getTorque();
             xs_.push_back(tau.x() / 10.0);
