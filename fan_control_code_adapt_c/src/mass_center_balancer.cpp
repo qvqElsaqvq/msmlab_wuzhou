@@ -93,14 +93,14 @@ void MassCenterBalancer::balance_both_axes_fan() {
     int min_step_min = 2, max_step_min = 220;
 
     // 分段：1.5-3.0, 3.0-10.0+
-    double torque_done = 1.0; // 稳态输出阈值（Nm），小于则认定该轴已足够好
-    double torque_xy_threshold = 3.0;
+    double torque_done = 3.0; // 稳态输出阈值（Nm），小于则认定该轴已足够好
+    double torque_xy_threshold = 5.0;
 
     tol_deg_ = 0.1;
     dwell_time_ = 6.0;
-    sample_time_ = 4.0;
+    sample_time_ = 6.0;
     settle_wait_ = 0.02; // 控制循环频率
-    waiting_time_ = 5.0;
+    waiting_time_ = 6.0;
 
     // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
     controller_.setAttitudeInBalancing({0.0, 0.0, 0.0});
@@ -204,14 +204,14 @@ void MassCenterBalancer::balance_z_axes_fan() {
     int max_step_s = 1500;
 
     double torque_z_threshold = 7.0;
-    double torque_done = 5.0; // 允许的回升力矩上限（Nm）
+    double torque_done = 4.0; // 允许的回升力矩上限（Nm）
     double pitch_metric = 0.0;
     double prev_dir_z = 0; // 方向
     int raw_sign = 0;
 
     tol_deg_ = 0.1;
-    dwell_time_ = 10.0; // 稳态保持计时时间
-    sample_time_ = 12.0; // 采样时间
+    dwell_time_ = 6.0; // 稳态保持计时时间
+    sample_time_ = 6.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
     if (if_in_z_changing_attitude) {

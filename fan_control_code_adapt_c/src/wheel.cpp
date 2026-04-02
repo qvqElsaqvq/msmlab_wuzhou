@@ -44,7 +44,7 @@ void Wheel::sendFrame(uint8_t wheel_id, uint8_t dir, uint8_t current)
             .current = current,
         };
         ser_.write(0x02, wheel_control);
-        std::cout << "[Wheel] send id=" << wheel_id << ", direction=" << dir << ", current=" << current << std::endl;
+        // std::cout << "[Wheel] send id=" << wheel_id << ", direction=" << dir << ", current=" << current << std::endl;
     }
 }
 
