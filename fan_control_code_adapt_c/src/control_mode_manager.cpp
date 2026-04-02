@@ -291,6 +291,7 @@ void ControlModeManager::executeBalancingMode() {
     // 获取当前力矩和陀螺姿态
     auto current_torque = attitude_controller_.getTorque();
     auto current_attitude = attitude_controller_.getCurrentGyroAttitude();
+    Eigen::Vector3d current_torque_nm = current_torque / 10.0;
 
     const auto& mass_steps = leadscrew_.getCurrentPositions();
 
@@ -303,8 +304,8 @@ void ControlModeManager::executeBalancingMode() {
                   << stage_status.state << " | "
                   << "姿态(roll/pitch/yaw): (" << current_attitude.x() << ", "
                   << current_attitude.y() << ", " << current_attitude.z() << ") | "
-                  << "力矩(Tx/Ty/Tz): (" << current_torque.x() << ", "
-                  << current_torque.y() << ", " << current_torque.z() << ") | "
+                  << "力矩(Tx/Ty/Tz): (" << current_torque_nm.x() << ", "
+                  << current_torque_nm.y() << ", " << current_torque_nm.z() << ") | "
                   << "质量块步长(X/Y/Z): (" << mass_steps[0] << ", "
                   << mass_steps[1] << ", " << mass_steps[2] << ")" << std::endl;
         balance_log_counter = 0;
@@ -320,8 +321,8 @@ void ControlModeManager::executeBalancingMode() {
         std::cout << "[调平完成] 自动调平算法执行完成\n";
         std::cout << "[调平完成] 最终姿态(roll/pitch/yaw): (" << current_attitude.x() << ", "
                   << current_attitude.y() << ", " << current_attitude.z() << ")\n";
-        std::cout << "[调平完成] 最终力矩(Tx/Ty/Tz): (" << current_torque.x() << ", "
-                  << current_torque.y() << ", " << current_torque.z() << ")\n";
+        std::cout << "[调平完成] 最终力矩(Tx/Ty/Tz): (" << current_torque_nm.x() << ", "
+                  << current_torque_nm.y() << ", " << current_torque_nm.z() << ")\n";
         std::cout << "[调平完成] 最终质量块步长(X/Y/Z): (" << mass_steps[0] << ", "
                   << mass_steps[1] << ", " << mass_steps[2] << ")\n";
         mqtt_callback_.setFlagBalance(true);
