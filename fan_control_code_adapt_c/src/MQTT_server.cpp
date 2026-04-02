@@ -43,7 +43,7 @@ CallBack::CallBack()
 	coop_dock_->head.head = 0x1D97;    // 表9：帧头 0x1D 0x97
 	coop_dock_->tail.checksum = 0x00; // 先置0，后续 memcpy 会覆盖
 
-    SERVER_ADDRESS = "mqtt://192.168.31.13:1883";
+    SERVER_ADDRESS = "mqtt://192.168.31.200:1883";
     CLIENT_ID = "satellite_client";
     QOS = 1;
     plane_data_topic = "attitude/data";

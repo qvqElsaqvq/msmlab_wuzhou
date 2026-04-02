@@ -92,7 +92,12 @@ void DataCollector::updateMocapData() {
     const auto& config = ConfigManager::getInstance().getConfig();
     RigidPose pose;
     
-    bool received_pose = Nokov_GetPoseByName(config.mocap_target_name, pose);
+    bool received_pose = false;
+    if (config.mocap_target_id >= 0) {
+        received_pose = Nokov_GetPoseById(config.mocap_target_id, pose);
+    } else {
+        received_pose = Nokov_GetPoseByName(config.mocap_target_name, pose);
+    }
     
     if (received_pose) {
         sensor_data_.mocap.valid = true;

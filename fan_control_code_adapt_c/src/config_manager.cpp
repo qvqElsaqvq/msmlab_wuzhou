@@ -59,6 +59,12 @@ bool ConfigManager::loadFromFile(const std::string& config_path) {
             config_.mocap_ip = value;
         } else if (key == "mocap_target_name") {
             config_.mocap_target_name = value;
+        } else if (key == "mocap_target_id") {
+            config_.mocap_target_id = std::stoi(value);
+        } else if (key == "mocap_dock_id") {
+            config_.mocap_dock_id = std::stoi(value);
+        } else if (key == "mocap_self_id") {
+            config_.mocap_self_id = std::stoi(value);
         } else if (key == "control_loop_period_ms") {
             config_.control_loop_period_ms = std::stoi(value);
         } else if (key == "mqtt_send_interval") {
@@ -100,6 +106,9 @@ bool ConfigManager::saveToFile(const std::string& config_path) {
 
     file << "mocap_ip = " << config_.mocap_ip << "\n";
     file << "mocap_target_name = " << config_.mocap_target_name << "\n\n";
+    file << "mocap_target_id = " << config_.mocap_target_id << "\n";
+    file << "mocap_dock_id = " << config_.mocap_dock_id << "\n";
+    file << "mocap_self_id = " << config_.mocap_self_id << "\n\n";
 
     file << "control_loop_period_ms = " << config_.control_loop_period_ms << "\n";
     file << "mqtt_send_interval = " << config_.mqtt_send_interval << "\n";

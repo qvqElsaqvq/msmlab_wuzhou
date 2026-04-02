@@ -3,15 +3,18 @@
 //
 
 #include "docker.h"
+#include "config_manager.h"
 #include <iostream>
 
 Docker::Docker(GyroScope& gyro, AttitudePDController &controller) : gyro_(gyro), controller_(controller) {
 }
 
 bool Docker::docking(CooperationDockData cooperation_dock_data) {
+    (void)cooperation_dock_data;
+    const auto& config = ConfigManager::getInstance().getConfig();
     RigidPose dock_pose, self_pose;
-    bool dock_success = Nokov_GetPoseById(1, dock_pose);
-    bool self_success = Nokov_GetPoseById(2, self_pose);
+    bool dock_success = Nokov_GetPoseById(config.mocap_dock_id, dock_pose);
+    bool self_success = Nokov_GetPoseById(config.mocap_self_id, self_pose);
     if (!dock_success || !self_success) {
         std::cout << "[Dock Controller] Failed to get new dock pose" << std::endl;
         return false;

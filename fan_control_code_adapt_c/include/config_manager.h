@@ -24,6 +24,9 @@ struct SystemConfig {
     // 动捕配置
     std::string mocap_ip = "192.168.31.3";
     std::string mocap_target_name = "WUZHOUSHANG";
+    int mocap_target_id = -1;
+    int mocap_dock_id = 1;
+    int mocap_self_id = 2;
 
     // 控制参数
     int control_loop_period_ms = 20;

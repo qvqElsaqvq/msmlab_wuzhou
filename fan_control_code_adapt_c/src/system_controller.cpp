@@ -149,6 +149,8 @@ bool SystemController::initializeMqtt() {
         connOpts.set_clean_session(true);
         
         std::cout << "[SystemController] Connecting to MQTT..." << std::endl;
+        std::cout << "[SystemController] MQTT server: " << config.mqtt_server_address
+                  << " client_id: " << config.mqtt_client_id << std::endl;
         mqtt_client_->connect(connOpts)->wait();
         
         mqtt_client_->start_consuming();
