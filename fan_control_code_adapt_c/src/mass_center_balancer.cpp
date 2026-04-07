@@ -176,6 +176,10 @@ void MassCenterBalancer::balance_both_axes_fan() {
             if_in_steady_state_ = false;
             waiting_after_moving_ = true;
             waiting_t_enter_ = clock();
+            x_err_angle_.clear();
+            y_err_angle_.clear();
+            x_err_angle_t_enter_ = -1;
+            y_err_angle_t_enter_ = -1;
         }
     }
 }
@@ -354,6 +358,10 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
             if ((clock() - waiting_t_enter_) / CLOCKS_PER_SEC * 20 >= waiting_time_) {
                 waiting_after_moving_ = false;
                 t_enter_ = -1;
+                x_err_angle_.clear();
+                y_err_angle_.clear();
+                x_err_angle_t_enter_ = -1;
+                y_err_angle_t_enter_ = -1;
             } else
                 return;
         } else {
@@ -458,6 +466,11 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
 
                                 waiting_after_moving_ = true;
                                 waiting_t_enter_ = clock();
+                                x_err_angle_.clear();
+                                y_err_angle_.clear();
+                                x_err_angle_t_enter_ = -1;
+                                y_err_angle_t_enter_ = -1;
+                                return;
                             }
                             x_err_angle_.clear();
                             x_err_angle_t_enter_ = -1;
@@ -486,6 +499,11 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
 
                                 waiting_after_moving_ = true;
                                 waiting_t_enter_ = clock();
+                                x_err_angle_.clear();
+                                y_err_angle_.clear();
+                                x_err_angle_t_enter_ = -1;
+                                y_err_angle_t_enter_ = -1;
+                                return;
                             }
                             y_err_angle_.clear();
                             y_err_angle_t_enter_ = -1;
