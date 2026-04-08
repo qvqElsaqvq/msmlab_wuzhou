@@ -5,6 +5,7 @@
 #include "status_publisher.h"
 #include "config_manager.h"
 #include "Utility.h"
+#include "gyro_scope.h"
 #include <iostream>
 #include <chrono>
 #include <cmath>
@@ -170,9 +171,13 @@ void StatusPublisher::fillStatusData(PlaneData& data) {
     data.wz = static_cast<int16_t>(current_status_.angular_velocity.wz * 100.0f);
     
     // 姿态角数据（乘以100）
-    data.roll = static_cast<int16_t>(current_status_.attitude.roll * 100.0f);
-    data.pitch = static_cast<int16_t>(current_status_.attitude.pitch * 100.0f);
-    data.yaw = static_cast<int16_t>(current_status_.attitude.yaw * 100.0f);
+    const double roll_deg = std::clamp(current_status_.attitude.roll, -50.0, 50.0);
+    const double pitch_deg = std::clamp(current_status_.attitude.pitch, -50.0, 50.0);
+    const double yaw_deg = gyro_util::wrapDeg180(current_status_.attitude.yaw);
+
+    data.roll = static_cast<int16_t>(roll_deg * 100.0);
+    data.pitch = static_cast<int16_t>(pitch_deg * 100.0);
+    data.yaw = static_cast<int16_t>(yaw_deg * 100.0);
     
     // 动量轮数据
     data.wheel_dir = current_status_.wheel.dir;

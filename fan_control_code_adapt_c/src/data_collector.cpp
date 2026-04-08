@@ -4,8 +4,10 @@
 
 #include "data_collector.h"
 #include "config_manager.h"
+#include "gyro_scope.h"
 #include <iostream>
 #include <chrono>
+#include <cmath>
 
 DataCollector::DataCollector(GyroScope& gyro, msmserial::MsMSerial& serial)
     : gyro_(gyro)
@@ -95,21 +97,24 @@ void DataCollector::updateMocapData() {
     bool received_pose = Nokov_GetPoseByName(config.mocap_target_name, pose);
     
     if (received_pose) {
-        sensor_data_.mocap.valid = true;
         sensor_data_.mocap.position = Eigen::Vector3d(pose.x, pose.y, pose.z);
         sensor_data_.mocap.quaternion = Eigen::Quaterniond(pose.qw, pose.qx, pose.qy, pose.qz);
         
-        // 计算欧拉角
         sensor_data_.mocap.quaternion.normalize();
-        // 这里需要调用gyro_util::eulerZYX_degFromQuat，但为了简化先使用简单转换
-        // 实际项目中应该使用统一的工具函数
-        Eigen::Vector3d euler = sensor_data_.mocap.quaternion.toRotationMatrix().eulerAngles(2, 1, 0);
-        sensor_data_.mocap.euler_angles = Eigen::Vector3d(
-            euler[2] * 180.0 / M_PI,  // roll
-            euler[1] * 180.0 / M_PI,  // pitch
-            euler[0] * 180.0 / M_PI   // yaw
-        );
-        
+        Eigen::Vector3d euler = gyro_util::eulerZYX_degFromQuat(sensor_data_.mocap.quaternion);
+        euler.z() = gyro_util::wrapDeg180(euler.z());
+
+        const double roll = euler.x();
+        const double pitch = euler.y();
+
+        if (std::abs(roll) > 50.0 || std::abs(pitch) > 50.0) {
+            sensor_data_.mocap.valid = false;
+            mocap_valid_ = false;
+            return;
+        }
+
+        sensor_data_.mocap.euler_angles = euler;
+        sensor_data_.mocap.valid = true;
         mocap_valid_ = true;
         
         // 动捕存在就先做外参标定
