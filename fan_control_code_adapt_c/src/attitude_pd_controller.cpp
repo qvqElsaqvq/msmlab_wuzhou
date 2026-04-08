@@ -48,12 +48,12 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
     v_pid_.max_out = Vec3(600, 600, 600);
 
     /* PID参数 */
-    angle_pid_.Kp = Vec3(1.2, 1.2, 1.0);
+    angle_pid_.Kp = Vec3(1.0, 1.0, 1.0);
     angle_pid_.Ki = Vec3(0, 0, 0);
-    angle_pid_.Kd = Vec3(80, 100, 160);
+    angle_pid_.Kd = Vec3(100, 100, 160);
 
-    v_pid_.Kp = Vec3(380, 400, 200);
-    v_pid_.Ki = Vec3(1.2, 1.2, 0.8);
+    v_pid_.Kp = Vec3(400, 450, 200);
+    v_pid_.Ki = Vec3(0.8, 1.0, 0.8);
     v_pid_.Kd = Vec3(0, 0, 0);
 }
 
@@ -136,7 +136,7 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg,
             .flag_balance = (uint8_t)if_finish_balancing_,
         };
             ser_.write(0x10, _wheelinit);
-        std::cout << "wheelinit: " << ",roll:"<< _wheelinit.target_roll << ",pitch:"<<  _wheelinit.target_pitch<< ",yaw:"<<  _wheelinit.target_yaw << std::endl;
+        // std::cout << "wheelinit: " << ",roll:"<< _wheelinit.target_roll << ",pitch:"<<  _wheelinit.target_pitch<< ",yaw:"<<  _wheelinit.target_yaw << std::endl;
         }
     }
 }
@@ -159,6 +159,7 @@ void AttitudePDController::setAngularVelocityInControl(const Vec3& wTargetDeg)
     torque_z = tauCmd.out[2];
 
     fan_.sendTorque(torque_x, torque_y, torque_z);
+    // std::cout << "sendTorque: " << "torque_x:"<<torque_x << ",torque_y:"<<  torque_y<< ",torque_z:"<< torque_z << std::endl;
 }
 
 

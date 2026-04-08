@@ -12,10 +12,10 @@ MassCenterBalancer::MassCenterBalancer(GyroScope &gyro, Fan &fan, LeadScrewContr
     std::cout << "[MassCenterBalancer] init" << std::endl;
 
     tol_deg_ = 0.1;
-    dwell_time_ = 10.0;
-    sample_time_ = 10.0;
+    dwell_time_ = 6.0;
+    sample_time_ = 6.0;
     settle_wait_ = 0.02;
-    waiting_time_ = 5.0;
+    waiting_time_ = 6.0;
 
     t_enter_ = -1;
     sample_t_enter_ = -1;
@@ -68,10 +68,10 @@ MassCenterBalancer::MassCenterBalancer(GyroScope &gyro, Fan &fan, LeadScrewContr
     if_20_ok_ = false;
     first_balancing_sleep_cnt = 0;
     if_first_balancing = true;
-    first_balancing_sleep_time = 25;
+    first_balancing_sleep_time = 40;
     z_change_attitude_sleep_cnt = 0;
     if_in_z_changing_attitude = false;
-    z_change_attitude_sleep_time = 25;
+    z_change_attitude_sleep_time = 30;
 
     // 初始化状态触发标志
     steady_state_triggered_ = false;
@@ -90,11 +90,11 @@ void MassCenterBalancer::balance_both_axes_fan() {
 
     /* 扭矩→步长比例与阈值（按需现场标定） */
     // 回升力矩较大时的扭矩→步长比例
-    int kx_max = 150, ky_max = 150; // step/Nm（示例系数，后续可在现场用相同口径微调）
-    int min_step_max = 20, max_step_max = 1000;
+    int kx_max = 300, ky_max = 300; // step/Nm（示例系数，后续可在现场用相同口径微调）
+    int min_step_max = 20, max_step_max = 5000;
     // 回升力矩较小时的扭矩→步长比例
-    int kx_min = 50, ky_min = 30;
-    int min_step_min = 2, max_step_min = 300; // step/Nm（示例系数，后续可在现场用相同口径微调）
+    int kx_min = 200, ky_min = 100;
+    int min_step_min = 2, max_step_min = 1000; // step/Nm（示例系数，后续可在现场用相同口径微调）
 
     // 分段：1.5-3.0, 3.0-10.0+
     double torque_done = 1.5; // 稳态输出阈值（Nm），小于则认定该轴已足够好
@@ -102,7 +102,7 @@ void MassCenterBalancer::balance_both_axes_fan() {
 
     tol_deg_ = 0.1;
     dwell_time_ = 6.0; // 稳态保持计时时间
-    sample_time_ = 4.0; // 采样时间
+    sample_time_ = 8.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
     // 1. 设定目标姿态 [0,0,0] → 等稳态并采样控制输出
@@ -190,22 +190,22 @@ void MassCenterBalancer::balance_z_axes_fan() {
     int min_step;
     int max_step;
     // 回升力矩较大时的扭矩→步长比例
-    int kz_l = 500; // step/N·m
+    int kz_l = 800; // step/N·m
     int min_step_l = 100;
-    int max_step_l = 2500;
+    int max_step_l = 4000;
     // 回升力矩较小时的扭矩→步长比例
-    int kz_s = 100; // step/N·m（保守）
+    int kz_s = 400; // step/N·m（保守）
     int min_step_s = 5;
-    int max_step_s = 1000;
+    int max_step_s = 2000;
 
     double torque_z_threshold = 7.0;
-    double torque_done = 2.0; // 允许的回升力矩上限（Nm）
+    double torque_done = 3.0; // 允许的回升力矩上限（Nm）
     double pitch_metric = 0.0;
     double prev_dir_z = 0; // 方向
     int raw_sign = 0;
 
     tol_deg_ = 0.2;
-    dwell_time_ = 8.0; // 稳态保持计时时间
+    dwell_time_ = 6.0; // 稳态保持计时时间
     sample_time_ = 6.0; // 采样时间
     settle_wait_ = 0.02; // 控制循环频率
 
@@ -427,11 +427,11 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                             if (fabs(z_err_angle_mean_) >= 0.2) // 移动质量块
                             {
                                 std::vector<int16_t> action;
-                                int step = int(z_err_angle_mean_ * 4000);
+                                int step = int(z_err_angle_mean_ * 6000);
                                 if (step > 0) // 限幅
-                                    step = std::min(8000, step);
+                                    step = std::min(10000, step);
                                 else if (step < 0)
-                                    step = std::max(-8000, step);
+                                    step = std::max(-10000, step);
                                 action.push_back(step);
                                 leadscrew_.moveTo(action);
                                 waiting_after_moving_ = true;
@@ -460,7 +460,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                             if (abs(x_err_angle_mean_) >= 0.5) // 直接移动质量块
                             {
                                 std::vector<int16_t> action;
-                                action.push_back(int(x_err_angle_mean_ * (-1500)));
+                                action.push_back(int(x_err_angle_mean_ * (-12000)));
                                 action.push_back(0);
                                 leadscrew_.moveTo(action);
 
@@ -494,7 +494,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                             {
                                 std::vector<int16_t> action;
                                 action.push_back(0);
-                                action.push_back(int(y_err_angle_mean_ * -1500));
+                                action.push_back(int(y_err_angle_mean_ * 12000));
                                 leadscrew_.moveTo(action);
 
                                 waiting_after_moving_ = true;

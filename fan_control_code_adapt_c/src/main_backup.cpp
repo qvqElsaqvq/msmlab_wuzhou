@@ -181,6 +181,7 @@ int main() {
                 target_attitude.pitch = angle.pitch;
                 target_attitude.yaw = angle.yaw;
 
+
                 if (received_pose) {
                     // ===== 1) 目标：动捕绝对目标 -> 平台等价目标（pitch 反号）=====
                     AttitudeData angle = cb.getAttitudeData();
@@ -190,6 +191,9 @@ int main() {
                     target_plat.roll = target_mocap.roll;
                     target_plat.pitch = -target_mocap.pitch; // ✅ 关键：pitch 反号
                     target_plat.yaw = target_mocap.yaw;
+                    std::cout << "roll=" << target_attitude.roll
+                           << ", pitch=" << target_attitude.pitch
+                           << ", yaw=" << target_attitude.yaw << std::endl;
 
                     // 目标四元数（平台等价）
                     Eigen::Quaterniond qT =
