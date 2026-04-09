@@ -451,6 +451,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                                 event_detail_ = std::string("Z 轴非稳态纠偏: err_mean=") + std::to_string(z_err_angle_mean_) +
                                                 " step=" + std::to_string(step);
                                 event_dirty_ = true;
+                                return;
                             }
                             z_err_angle_.clear();
                             z_err_angle_t_enter_ = -1;
@@ -483,6 +484,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                                 event_detail_ = std::string("X 轴非稳态纠偏: err_mean=") + std::to_string(x_err_angle_mean_) +
                                                 " step=" + std::to_string(int(-1500 * x_err_angle_mean_));
                                 event_dirty_ = true;
+                                return;
                             }
                             x_err_angle_.clear();
                             x_err_angle_t_enter_ = -1;
@@ -513,6 +515,7 @@ void MassCenterBalancer::wait_steady_and_sample_outputs() {
                                 event_detail_ = std::string("Y 轴非稳态纠偏: err_mean=") + std::to_string(y_err_angle_mean_) +
                                                 " step=" + std::to_string(int(1500 * y_err_angle_mean_));
                                 event_dirty_ = true;
+                                return;
                             }
                             y_err_angle_.clear();
                             y_err_angle_t_enter_ = -1;
