@@ -199,7 +199,7 @@ void MassCenterBalancer::balance_z_axes_fan() {
     int max_step_s = 2000;
 
     double torque_z_threshold = 7.0;
-    double torque_done = 3.0; // 允许的回升力矩上限（Nm）
+    double torque_done = 1.5; // 允许的回升力矩上限（Nm）
     double pitch_metric = 0.0;
     double prev_dir_z = 0; // 方向
     int raw_sign = 0;
