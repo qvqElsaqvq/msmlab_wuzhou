@@ -19,6 +19,7 @@
 #include "MQTT_server.h"
 #include "nokov_bridge.h"
 #include "docker.h"
+#include "config_manager.h"
 #include <cmath>
 #include <fstream>
 #include <iomanip>
@@ -65,9 +66,12 @@ int main() {
     bool if_finish_balancing = false;
     bool if_poweroff = false;
 
-    // 1) 先启动 Nokov（你可以写死 IP，也可以从配置文件读）
-    const char *mocap_ip = "192.168.31.3";
-    if (Nokov_Start(mocap_ip) != 0) {
+    // 1) 加载配置（IP/串口等与运行地点相关的参数放到 config.ini）
+    ConfigManager::getInstance().loadFromFile("config.ini");
+    const auto& cfg = ConfigManager::getInstance().getConfig();
+
+    // 2) 启动动捕（Nokov）
+    if (Nokov_Start(cfg.mocap_ip.c_str()) != 0) {
         std::cerr << "[NOKOV] start failed\n";
         return 1;
     }
@@ -82,7 +86,7 @@ int main() {
     mqtt::connect_options connOpts;
     connOpts.set_clean_session(false);
 
-    ForsenseIMU::InitSerial("/dev/ttyUSB0");
+    ForsenseIMU::InitSerial(cfg.imu_serial_port.c_str());
 
     bool flag_balancing = false; // 自动调平是否完成
     bool set_balancing = false; // 是否触发自动调平
@@ -128,7 +132,7 @@ int main() {
             auto new_imu_data = ForsenseIMU::GetLatestData();
 
             RigidPose pose;
-            bool received_pose = Nokov_GetPoseByName("WUZHOUSHANG", pose); // 获取动捕数据
+            bool received_pose = Nokov_GetPoseByName(cfg.mocap_target_name.c_str(), pose); // 获取动捕数据
             gyro.updateMocapExtrinsic(pose, received_pose); // ✅ 新增：动捕存在就先做外参标定（内部自动一次性完成）
 
             if_poweroff = cb.getIfPowerOff();

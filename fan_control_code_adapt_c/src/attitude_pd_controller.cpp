@@ -4,12 +4,11 @@
 
 #include "attitude_pd_controller.h"
 
-#include <memory>
 #include <optional>
 
 using Vec3 = Eigen::Vector3d;
-using Quat = Eigen::Quaterniond;
 
+// 姿态控制器：外环（角度）+ 内环（角速度）的串级 PID，最终输出推力器三轴力矩。
 AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& wheel, msmserial::MsMSerial& msm_serial):
     gyro_(gyro),
     fan_(fan),
@@ -43,20 +42,21 @@ AttitudePDController::AttitudePDController(GyroScope& gyro, Fan& fan, Wheel& whe
 
     /* PID上限阈值 */
     angle_pid_.max_i_out = Vec3(0, 0, 0);
-    angle_pid_.max_out = Vec3(1, 1, 2);
-    v_pid_.max_i_out = Vec3(50, 50, 100);
+    angle_pid_.max_out = Vec3(1, 1, 3);
+    v_pid_.max_i_out = Vec3(50, 30, 100);
     v_pid_.max_out = Vec3(600, 600, 600);
 
     /* PID参数 */
-    angle_pid_.Kp = Vec3(1.0, 1.0, 1.0);
+    angle_pid_.Kp = Vec3(0.8, 0.8, 0.8);
     angle_pid_.Ki = Vec3(0, 0, 0);
-    angle_pid_.Kd = Vec3(100, 100, 160);
+    angle_pid_.Kd = Vec3(30, 45, 45);
 
-    v_pid_.Kp = Vec3(400, 450, 200);
-    v_pid_.Ki = Vec3(0.8, 1.0, 0.8);
+    v_pid_.Kp = Vec3(180, 240, 200);
+    v_pid_.Ki = Vec3(0.2, 0.8, 0.5);
     v_pid_.Kd = Vec3(0, 0, 0);
 }
 
+// 通用三轴 PID 计算：set-ref 作为误差，向量化计算 P/I/D，并执行 I 项与总输出限幅。
 PID AttitudePDController::computeControl(PID& pid, Vec3& ref, Vec3& set)
 {
     Vec3 error = set - ref;
@@ -92,36 +92,29 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg,
     const std::optional<GyroScope::Vec3> other_av,
     const std::optional<GyroScope::Vec3> other_at)
 {
-    /*
-     * 调平过程中使用的不进死循环的控制
-     * X/Y/Z：双环PID（欧拉角）
-     */
+    // 调平/姿态控制（角度串级）：角度误差 -> 角速度指令 -> 力矩输出。
 
     angleTarget_ = eulerAngleDeg;
 
-    /* 读当前姿态 */
-    auto av = other_av.value_or(gyro_.getAngularVelocity()); // °/s
-    auto at = other_at.value_or(gyro_.getAttitude());// °
+    // 读当前角速度与姿态（deg/s 与 deg）
+    auto av = other_av.value_or(gyro_.getAngularVelocity());
+    auto at = other_at.value_or(gyro_.getAttitude());
     Vec3 angleCurrentDeg(at.x, at.y, at.z);
     Vec3 wCurrentDeg(av.x, av.y, av.z);
 
-    /* X/Y/Z 双环 PID */
-    auto angle_diff = [](double tar, double cur){return 180.0 / M_PI * atan2(sin(tar / 180.0 * M_PI - cur / 180.0 * M_PI), cos(tar / 180.0 * M_PI - cur / 180.0 * M_PI));};
-    Vec3 err_angle{angle_diff(angleTarget_.x(), at.x), angle_diff(angleTarget_.y(), at.y), angle_diff(angleTarget_.z(), at.z)};
-    Vec3 ZERO{0.0, 0.0, 0.0};
-    // std::cout << "err: " <<angleTarget_.z() << " " << at.z << std::endl;
-    PID wCmd = computeControl(angle_pid_, ZERO, err_angle);
-    wCmd.out[2] = -wCmd.out[2];
-    // std::cout << "last_error: " << angle_pid_.last_error << std::endl;
-    // std::cout << "angle out: " << wCmd.out[0] << ", " << wCmd.out[1] << ", " << wCmd.out[2] << std::endl;
+    // 外环：角度 -> 角速度指令
+    PID wCmd = computeControl(angle_pid_, angleCurrentDeg, angleTarget_);
 
+    // 轴系方向约定：保持 zheda 的 yaw 方向（与历史版本一致）
+    wCmd.out[2] = -wCmd.out[2];
+
+    // 内环：角速度 -> 力矩输出
     PID tauCmd = computeControl(v_pid_, wCurrentDeg, wCmd.out);
     torque_x = tauCmd.out[0];
     torque_y = tauCmd.out[1];
     torque_z = tauCmd.out[2];
-    // std::cout << "torque_x=" << torque_x << ", torque_y=" << torque_y << ", torque_z=" << torque_z << std::endl;
 
-    // 下发力矩
+    // 下发力矩（推力器）
     fan_.sendTorque(torque_x, torque_y, torque_z);
 
     if (if_finish_balancing_) {
@@ -130,13 +123,12 @@ void AttitudePDController::setAttitudeInBalancing(const Vec3& eulerAngleDeg,
             cnt_ = 0;
             WheelInit _wheelinit{
             .device_id = 0x5A,
-            .target_roll = (int16_t)(angleTarget_.x() * 100.0f),
-            .target_pitch = (int16_t)(angleTarget_.y() * 100.0f),
-            .target_yaw = (int16_t)(angleTarget_.z() * 100.0f),
+            .target_roll = (int16_t)angleTarget_.x(),
+            .target_pitch = (int16_t)angleTarget_.y(),
+            .target_yaw = (int16_t)angleTarget_.z(),
             .flag_balance = (uint8_t)if_finish_balancing_,
         };
             ser_.write(0x10, _wheelinit);
-        // std::cout << "wheelinit: " << ",roll:"<< _wheelinit.target_roll << ",pitch:"<<  _wheelinit.target_pitch<< ",yaw:"<<  _wheelinit.target_yaw << std::endl;
         }
     }
 }
@@ -147,7 +139,7 @@ void AttitudePDController::setAngularVelocityInControl(const Vec3& wTargetDeg)
     auto av = gyro_.getAngularVelocity();
     Vec3 wCurrentDeg(av.x, av.y, av.z);
 
-    // 保持与你姿态环一致的 yaw 方向约定（你在姿态控制里对 wCmd.out[2] 做了反号）
+    // 与角度串级保持一致的 yaw 方向约定：z 轴目标角速度同样取反
     Vec3 wTargetAdj = wTargetDeg;
     wTargetAdj[2] = -wTargetAdj[2];
 
@@ -159,7 +151,6 @@ void AttitudePDController::setAngularVelocityInControl(const Vec3& wTargetDeg)
     torque_z = tauCmd.out[2];
 
     fan_.sendTorque(torque_x, torque_y, torque_z);
-    // std::cout << "sendTorque: " << "torque_x:"<<torque_x << ",torque_y:"<<  torque_y<< ",torque_z:"<< torque_z << std::endl;
 }
 
 

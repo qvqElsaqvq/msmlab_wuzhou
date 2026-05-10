@@ -175,29 +175,29 @@ private:
      */
     Eigen::Vector3d convertMocapToPlatformAttitude(const Eigen::Vector3d& mocap_attitude) const;
 
-    // 组件引用
-    CallBack& mqtt_callback_;
-    AttitudePDController& attitude_controller_;
-    MassCenterBalancer& balancer_;
-    Docker& docker_;
-    Fan& fan_;
-    Wheel& wheel_;
-    LeadScrewController& leadscrew_;
+    // 组件引用（外部注入，ControlModeManager 不负责其生命周期）
+    CallBack& mqtt_callback_;                 // MQTT 回调：提供上位机指令与标志位
+    AttitudePDController& attitude_controller_; // 姿态控制器：姿态/角速度模式下发力矩
+    MassCenterBalancer& balancer_;            // 调平器：调平流程与状态机
+    Docker& docker_;                          // 对接模块：对接流程与状态机
+    Fan& fan_;                                // 推力器：力矩/速度等模式下发
+    Wheel& wheel_;                            // 动量轮：用于姿态辅助/测试
+    LeadScrewController& leadscrew_;          // 丝杆：用于配重/调平
 
     // 当前状态
-    ControlMode current_mode_ = ControlMode::IDLE;
-    ControlCommand current_command_;
-    ControlCommand last_command_;
+    ControlMode current_mode_ = ControlMode::IDLE; // 当前控制模式
+    ControlCommand current_command_;               // 当前控制指令（解析自 MQTT 或内部生成）
+    ControlCommand last_command_;                  // 上一次控制指令（用于边沿检测/状态切换）
 
     // 状态标志
-    bool balancing_in_progress_ = false;
-    bool current_balance_status_ = false;
-    bool if_finish_balancing_ = false;
-    bool power_off_ = false;
-    bool fan_power_off_after_balance_ = false;  // 调平完成后停止旋翼
+    bool balancing_in_progress_ = false;        // 是否处于调平流程中（防止重复触发）
+    bool current_balance_status_ = false;       // 调平流程内部状态（用于分阶段控制）
+    bool if_finish_balancing_ = false;          // 调平是否完成（通知姿态控制器与上位机）
+    bool power_off_ = false;                    // 是否接收到停机指令（输出归零）
+    bool fan_power_off_after_balance_ = false;  // 调平完成后是否关闭推力器（安全/测试用途）
 
     // 目标姿态（用于姿态控制）
-    struct Attitude target_attitude_ {0.0, 0.0, 0.0};
+    struct Attitude target_attitude_ {0.0, 0.0, 0.0}; // r/p/y 目标（deg）
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_CONTROL_MODE_MANAGER_H

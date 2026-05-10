@@ -90,16 +90,16 @@ private:
 
 
     // MQTT相关
-    mqtt::async_client& mqtt_client_;
-    CallBack& mqtt_callback_;
+    mqtt::async_client& mqtt_client_;  // MQTT 客户端：发布状态消息
+    CallBack& mqtt_callback_;          // MQTT 回调：提供主题名/设备ID/部分控制标志位
     
     // 系统组件引用
-    DataCollector& data_collector_;
-    ControlModeManager& control_mode_manager_;
-    AttitudePDController& attitude_controller_;
-    MassCenterBalancer& balancer_;
-    Fan& fan_;
-    Wheel& wheel_;
+    DataCollector& data_collector_;            // 传感器数据采集（陀螺/动捕/融合数据）
+    ControlModeManager& control_mode_manager_; // 当前模式与控制命令（用于状态字段填充）
+    AttitudePDController& attitude_controller_; // 当前力矩输出（用于 torque 字段）
+    MassCenterBalancer& balancer_;             // 调平状态（balance_flag/balance_set）
+    Fan& fan_;                                 // 推力器状态（可扩展）
+    Wheel& wheel_;                             // 动量轮状态（方向/转速/电流等）
 
     // 状态数据
     struct SystemStatus {
@@ -162,17 +162,18 @@ private:
         uint8_t platform_status = 0x01;         // 平台状态
         int16_t payload_mass = 0;               // 承载质量
         int16_t thrust_x = 0;                   // X方向推力
-    int16_t thrust_y = 0;                   // Y方向推力
-    int16_t thrust_z = 0;                   // Z方向推力
+        int16_t thrust_y = 0;                   // Y方向推力
+        int16_t thrust_z = 0;                   // Z方向推力
     } current_status_;
 
     // 动捕角度连续性处理（记录上一次的动捕角度值）
-    double last_mocap_roll_ = 0.0;
-    double last_mocap_pitch_ = 0.0;
+    double last_mocap_roll_ = 0.0;              // 上一帧动捕 roll（用于跨 ±180° 连续化）
+    double last_mocap_pitch_ = 0.0;             // 上一帧动捕 pitch（用于跨 ±180° 连续化）
+
     // 发送控制
-    std::atomic<int> send_counter_{0};
-    std::atomic<int> send_interval_{5};  // 默认5个循环发送一次
-    std::atomic<bool> initialized_{false};
+    std::atomic<int> send_counter_{0};          // 发送计数（每次 update() 递增）
+    std::atomic<int> send_interval_{5};         // 发送间隔（默认 5 个循环发送一次）
+    std::atomic<bool> initialized_{false};      // 是否已初始化（避免重复初始化）
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_STATUS_PUBLISHER_H

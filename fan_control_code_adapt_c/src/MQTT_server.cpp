@@ -3,6 +3,7 @@
 //
 
 #include "MQTT_server.h"
+#include "config_manager.h"
 
 CallBack::CallBack()
 {
@@ -43,9 +44,10 @@ CallBack::CallBack()
 	coop_dock_->head.head = 0x1D97;    // 表9：帧头 0x1D 0x97
 	coop_dock_->tail.checksum = 0x00; // 先置0，后续 memcpy 会覆盖
 
-    SERVER_ADDRESS = "mqtt://192.168.31.4:1883";
-    CLIENT_ID = "satellite_client";
-    QOS = 1;
+    const auto& cfg = ConfigManager::getInstance().getConfig();
+    SERVER_ADDRESS = cfg.mqtt_server_address;
+    CLIENT_ID = cfg.mqtt_client_id;
+    QOS = cfg.mqtt_qos;
     plane_data_topic = "attitude/data";
     cmd_plane_basic_topic = "attitude/basic";
     cmd_plane_trajectory_topic = "attitude/trajectory";
@@ -67,7 +69,6 @@ CallBack::CallBack()
     q1_ = 0.0;
     q2_ = 0.0;
     q3_ = 0.0;
-    QOS = 1;
 
     flag_balance_ = false;
     if_need_balancing_ = false;

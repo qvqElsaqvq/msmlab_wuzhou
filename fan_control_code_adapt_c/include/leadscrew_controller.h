@@ -15,13 +15,14 @@
 class LeadScrewController
 {
 private:
-    msmserial::MsMSerial& ser_;
+    msmserial::MsMSerial& ser_;            // 串口对象（下发丝杆控制帧）
 
-    bool if_power_off_;
+    bool if_power_off_;                    // 停机标志：true 时禁止输出
 
-    std::vector<int16_t> last_step_{0, 0, 0};
+    std::vector<int16_t> last_step_{0, 0, 0}; // 最近一次下发的相对步长（用于状态回显/诊断）
 
 public:
+    // 构造：注册报警回调（如撞边），初始化状态
     explicit LeadScrewController(msmserial::MsMSerial& serial);
 
     /*
@@ -31,8 +32,10 @@ public:
      */
     void moveTo(const std::vector<int16_t>& location);
 
+    // 获取最近一次下发/估计的位置（按 X/Y/Z 顺序）
     const std::vector<int16_t>& getCurrentPositions() const;
 
+    // 设置停机标志
     void setIfPowerOff( bool if_power_off );
 };
 

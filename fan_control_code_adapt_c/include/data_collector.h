@@ -138,22 +138,22 @@ private:
     void calibrateMocapExtrinsic();
 
     // 传感器接口引用
-    GyroScope& gyro_;
-    msmserial::MsMSerial& serial_;
+    GyroScope& gyro_;                   // 陀螺仪接口（串口回调更新）
+    msmserial::MsMSerial& serial_;      // 串口对象（用于 Forsense IMU / 其他设备）
 
     // 传感器数据
-    SensorData sensor_data_;
+    SensorData sensor_data_;            // 当前周期的传感器快照（含融合后的姿态输出）
 
     // 统计信息
-    std::chrono::steady_clock::time_point last_update_time_;
-    int update_count_ = 0;
-    double update_frequency_ = 0.0;
+    std::chrono::steady_clock::time_point last_update_time_; // 上一次 update() 时间
+    int update_count_ = 0;                                    // update() 调用次数累计
+    double update_frequency_ = 0.0;                           // 估计的更新频率（Hz）
 
     // 状态标志
-    bool gyro_valid_ = false;
-    bool imu_valid_ = false;
-    bool mocap_valid_ = false;
-    bool mocap_calibrated_ = false;
+    bool gyro_valid_ = false;          // 陀螺仪数据是否可用
+    bool imu_valid_ = false;           // Forsense IMU 数据是否可用
+    bool mocap_valid_ = false;         // 动捕数据是否可用
+    bool mocap_calibrated_ = false;    // 动捕外参是否已完成标定（mocap->gyro 对齐）
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_DATA_COLLECTOR_H
