@@ -364,11 +364,24 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
             mocap_offset_initialized_ = true;
         }
 
-        // 4) yaw 偏置慢更新：用动捕提供绝对 yaw 约束，抵消陀螺 yaw 漂移
-        // 时间常数约 10s：alpha = dt/tau ≈ 0.02/10 = 0.002
+        // 4) 偏置慢更新：用动捕提供绝对姿态约束，抵消陀螺积分漂移与安装误差残差。
+        // 说明：
+        // - roll/pitch 漂移通常较小，但在“动捕看仍有残差”时，可用慢更新把残差吃掉（避免卡在 0.5~1deg 附近）。
+        // - yaw 漂移更明显，因此单独设置更慢/更稳的时间常数。
+        //
+        // 50Hz 下经验值：
+        // - rp_alpha = 0.003  => tau ~ 0.02/0.003 ≈ 6.7s（对 0.5~1deg 残差收敛较快，仍足够平滑）
+        // - yaw_alpha = 0.002 => tau ~ 10s（抑制 yaw 漂移，同时避免引入动捕帧间抖动）
+        const double rp_alpha = 0.003;
         const double yaw_alpha = 0.002;
-        const double yaw_err = gyro_util::wrapDeg180((rpyG_raw.z() - rpyM_plat.z()) - mocap_yaw_offset_deg_);
-        mocap_yaw_offset_deg_ = gyro_util::wrapDeg180(mocap_yaw_offset_deg_ + yaw_alpha * yaw_err);
+
+        const double roll_err  = gyro_util::wrapDeg180((rpyG_raw.x() - rpyM_plat.x()) - mocap_roll_offset_deg_);
+        const double pitch_err = gyro_util::wrapDeg180((rpyG_raw.y() - rpyM_plat.y()) - mocap_pitch_offset_deg_);
+        const double yaw_err   = gyro_util::wrapDeg180((rpyG_raw.z() - rpyM_plat.z()) - mocap_yaw_offset_deg_);
+
+        mocap_roll_offset_deg_  = gyro_util::wrapDeg180(mocap_roll_offset_deg_  + rp_alpha  * roll_err);
+        mocap_pitch_offset_deg_ = gyro_util::wrapDeg180(mocap_pitch_offset_deg_ + rp_alpha  * pitch_err);
+        mocap_yaw_offset_deg_   = gyro_util::wrapDeg180(mocap_yaw_offset_deg_   + yaw_alpha * yaw_err);
 
         // 5) 动捕绝对目标（平台等价：pitch 反号） -> 陀螺目标（加偏置）
         Attitude target_plat{
@@ -409,7 +422,9 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
             std::cout << "[姿态控制] 目标(陀螺系): roll=" << target_attitude_.roll
                       << ", pitch=" << target_attitude_.pitch
                       << ", yaw=" << target_attitude_.yaw
-                      << " | yaw_offset=" << mocap_yaw_offset_deg_ << std::endl;
+                      << " | offsets(r,p,y)=(" << mocap_roll_offset_deg_
+                      << "," << mocap_pitch_offset_deg_
+                      << "," << mocap_yaw_offset_deg_ << ")" << std::endl;
             log_counter = 0;
         }
     } else {
