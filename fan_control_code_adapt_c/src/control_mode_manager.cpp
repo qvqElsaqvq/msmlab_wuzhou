@@ -230,6 +230,7 @@ void ControlModeManager::cleanupControlState() {
     balancing_in_progress_ = false;
     current_balance_status_ = false;
     if_finish_balancing_ = false;
+    mocap_offset_initialized_ = false;
 }
 
 void ControlModeManager::executeIdleMode() {
@@ -339,60 +340,55 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
     // 使用主循环中的姿态控制逻辑
     
     if (sensor_data.mocap.valid) {
-        // 1) 目标：动捕绝对目标 -> 平台等价目标（pitch 反号）
-        Attitude target_mocap{
+        // 动捕有效：使用“动捕绝对目标 + 动捕->陀螺偏置(roll/pitch固定 + yaw慢更新)”生成陀螺闭环目标。
+        // 目标不再依赖当前陀螺姿态 qG_cur，可避免目标随漂移跑动导致的低频自激摆动。
+
+        // 1) 动捕当前姿态（平台等价：pitch 反号）
+        Eigen::Quaterniond qM_raw = sensor_data.mocap.quaternion.normalized();
+        Eigen::Vector3d rpyM_plat = gyro_util::eulerZYX_degFromQuat(qM_raw); // [roll,pitch,yaw]
+        rpyM_plat.y() = -rpyM_plat.y();
+        rpyM_plat.z() = gyro_util::wrapDeg180(rpyM_plat.z());
+
+        // 保存原始动捕当前姿态用于显示（动捕系）
+        Eigen::Vector3d current_mocap_raw = gyro_util::eulerZYX_degFromQuat(qM_raw);
+
+        // 2) 当前陀螺姿态（使用 raw_attitude，避免被动捕覆盖导致逻辑不一致）
+        Eigen::Vector3d rpyG_raw = sensor_data.gyro.raw_attitude; // [roll,pitch,yaw]
+        rpyG_raw.z() = gyro_util::wrapDeg180(rpyG_raw.z());
+
+        // 3) 初始化偏置（首次进入/或切换模式后）
+        if (!mocap_offset_initialized_) {
+            mocap_roll_offset_deg_  = gyro_util::wrapDeg180(rpyG_raw.x() - rpyM_plat.x());
+            mocap_pitch_offset_deg_ = gyro_util::wrapDeg180(rpyG_raw.y() - rpyM_plat.y());
+            mocap_yaw_offset_deg_   = gyro_util::wrapDeg180(rpyG_raw.z() - rpyM_plat.z());
+            mocap_offset_initialized_ = true;
+        }
+
+        // 4) yaw 偏置慢更新：用动捕提供绝对 yaw 约束，抵消陀螺 yaw 漂移
+        // 时间常数约 10s：alpha = dt/tau ≈ 0.02/10 = 0.002
+        const double yaw_alpha = 0.002;
+        const double yaw_err = gyro_util::wrapDeg180((rpyG_raw.z() - rpyM_plat.z()) - mocap_yaw_offset_deg_);
+        mocap_yaw_offset_deg_ = gyro_util::wrapDeg180(mocap_yaw_offset_deg_ + yaw_alpha * yaw_err);
+
+        // 5) 动捕绝对目标（平台等价：pitch 反号） -> 陀螺目标（加偏置）
+        Attitude target_plat{
             current_command_.attitude.roll,
-            current_command_.attitude.pitch,
+            -current_command_.attitude.pitch,
             current_command_.attitude.yaw
         };
-        
-        Attitude target_plat;
-        target_plat.roll = target_mocap.roll;
-        target_plat.pitch = -target_mocap.pitch; // ✅ 关键：pitch 反号
-        target_plat.yaw = target_mocap.yaw;
-        
-        // 目标四元数（平台等价）
-        Eigen::Quaterniond qT =
-            gyro_util::quatFromEulerZYX_deg(target_plat.roll,
-                                            target_plat.pitch,
-                                            target_plat.yaw);
-        
-        // 2) 当前：动捕当前 -> 转欧拉 -> pitch 反号 -> 再转四元数
-        Eigen::Quaterniond qM_raw = sensor_data.mocap.quaternion;
-        qM_raw.normalize();
 
-        // 保存原始动捕当前姿态用于显示
-        Eigen::Vector3d current_mocap_raw = gyro_util::eulerZYX_degFromQuat(qM_raw); // [roll,pitch,yaw]
+        target_attitude_.roll  = gyro_util::wrapDeg180(target_plat.roll  + mocap_roll_offset_deg_);
+        target_attitude_.pitch = gyro_util::wrapDeg180(target_plat.pitch + mocap_pitch_offset_deg_);
+        target_attitude_.yaw   = gyro_util::wrapDeg180(target_plat.yaw   + mocap_yaw_offset_deg_);
 
-        // 用统一的欧拉提取（ZYX, deg）
-        Eigen::Vector3d rpyM = gyro_util::eulerZYX_degFromQuat(qM_raw); // [roll,pitch,yaw]
-        rpyM.y() = -rpyM.y(); // ✅ 关键：pitch 反号
-
-        Eigen::Quaterniond qM =
-            gyro_util::quatFromEulerZYX_deg(rpyM.x(), rpyM.y(), rpyM.z());
-        
-        // 3) 误差驱动：动捕当前(平台等价) -> 目标(平台等价)
-        Eigen::Quaterniond qDelta = qM.inverse() * qT;
-        qDelta.normalize();
-        
-        // 4) 陀螺闭环目标：当前陀螺姿态 * 误差
-        Eigen::Quaterniond qG_cur = sensor_data.gyro.quaternion;
-        qG_cur.normalize();
-        
-        Eigen::Quaterniond qG_tgt = qG_cur * qDelta;
-        qG_tgt.normalize();
-        
-        // 5) 给 PID 的欧拉目标（平台系）
-        Eigen::Vector3d rpyG_tgt = gyro_util::eulerZYX_degFromQuat(qG_tgt);
-        target_attitude_.roll = rpyG_tgt.x();
-        target_attitude_.pitch = rpyG_tgt.y();
-        target_attitude_.yaw = rpyG_tgt.z();
-        
         const auto& config = ConfigManager::getInstance().getConfig();
-        auto gatt = sensor_data.gyro.attitude;
-        if (fabs(gatt.x() - target_attitude_.roll) < config.angle_tolerance_deg and
-            fabs(gatt.y() - target_attitude_.pitch) < config.angle_tolerance_deg and
-            fabs(gatt.z() - target_attitude_.yaw) < config.yaw_tolerance_deg) {
+        const auto angle_diff = [](double tar, double cur) {
+            return gyro_util::wrapDeg180(tar - cur);
+        };
+
+        if (std::abs(angle_diff(target_attitude_.roll, rpyG_raw.x())) < config.angle_tolerance_deg &&
+            std::abs(angle_diff(target_attitude_.pitch, rpyG_raw.y())) < config.angle_tolerance_deg &&
+            std::abs(angle_diff(target_attitude_.yaw, rpyG_raw.z())) < config.yaw_tolerance_deg) {
             attitude_controller_.setIfFinishBalancing(true);
         }
 
@@ -407,18 +403,13 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
             std::cout << "[姿态控制] 当前(动捕系): roll=" << current_mocap_raw.x()
                       << ", pitch=" << current_mocap_raw.y()
                       << ", yaw=" << current_mocap_raw.z() << std::endl;
-            // 显示当前陀螺姿态（从原始四元数重新计算，并wrap到[-180, 180)范围）
-            Eigen::Vector3d raw_gyro_attitude = gyro_util::eulerZYX_degFromQuat(sensor_data.gyro.quaternion);
-            // Wrap到[-180, 180)范围
-            auto wrapDeg180 = [](double deg) {
-                deg = std::fmod(deg, 360.0);
-                if (deg >= 180.0) deg -= 360.0;
-                if (deg <  -180.0) deg += 360.0;
-                return deg;
-            };
-            std::cout << "[姿态控制] 当前(陀螺系): roll=" << wrapDeg180(raw_gyro_attitude.x())
-                      << ", pitch=" << wrapDeg180(raw_gyro_attitude.y())
-                      << ", yaw=" << wrapDeg180(raw_gyro_attitude.z()) << std::endl;
+            std::cout << "[姿态控制] 当前(陀螺系): roll=" << gyro_util::wrapDeg180(rpyG_raw.x())
+                      << ", pitch=" << gyro_util::wrapDeg180(rpyG_raw.y())
+                      << ", yaw=" << gyro_util::wrapDeg180(rpyG_raw.z()) << std::endl;
+            std::cout << "[姿态控制] 目标(陀螺系): roll=" << target_attitude_.roll
+                      << ", pitch=" << target_attitude_.pitch
+                      << ", yaw=" << target_attitude_.yaw
+                      << " | yaw_offset=" << mocap_yaw_offset_deg_ << std::endl;
             log_counter = 0;
         }
     } else {

@@ -198,6 +198,12 @@ private:
 
     // 目标姿态（用于姿态控制）
     struct Attitude target_attitude_ {0.0, 0.0, 0.0};
+
+    // ===== 动捕->陀螺目标映射参数（用于抑制 yaw 漂移且避免目标自激）=====
+    bool mocap_offset_initialized_ = false;   // 是否已建立“动捕姿态 -> 陀螺姿态”的初始偏置
+    double mocap_roll_offset_deg_ = 0.0;      // roll 偏置：gyro_roll - mocap_roll_plat（deg）
+    double mocap_pitch_offset_deg_ = 0.0;     // pitch 偏置：gyro_pitch - mocap_pitch_plat（deg）
+    double mocap_yaw_offset_deg_ = 0.0;       // yaw 偏置：gyro_yaw - mocap_yaw_plat（deg），会缓慢更新以抵消漂移
 };
 
 #endif //FAN_CONTROL_CODE_ADAPT_C_CONTROL_MODE_MANAGER_H
