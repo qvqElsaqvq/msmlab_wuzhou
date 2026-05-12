@@ -364,24 +364,14 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
             mocap_offset_initialized_ = true;
         }
 
-        // 4) 偏置慢更新：用动捕提供绝对姿态约束，抵消陀螺积分漂移与安装误差残差。
-        // 说明：
-        // - roll/pitch 漂移通常较小，但在“动捕看仍有残差”时，可用慢更新把残差吃掉（避免卡在 0.5~1deg 附近）。
-        // - yaw 漂移更明显，因此单独设置更慢/更稳的时间常数。
-        //
-        // 50Hz 下经验值：
-        // - rp_alpha = 0.003  => tau ~ 0.02/0.003 ≈ 6.7s（对 0.5~1deg 残差收敛较快，仍足够平滑）
-        // - yaw_alpha = 0.002 => tau ~ 10s（抑制 yaw 漂移，同时避免引入动捕帧间抖动）
-        const double rp_alpha = 0.003;
-        const double yaw_alpha = 0.002;
-
-        const double roll_err  = gyro_util::wrapDeg180((rpyG_raw.x() - rpyM_plat.x()) - mocap_roll_offset_deg_);
-        const double pitch_err = gyro_util::wrapDeg180((rpyG_raw.y() - rpyM_plat.y()) - mocap_pitch_offset_deg_);
-        const double yaw_err   = gyro_util::wrapDeg180((rpyG_raw.z() - rpyM_plat.z()) - mocap_yaw_offset_deg_);
-
-        mocap_roll_offset_deg_  = gyro_util::wrapDeg180(mocap_roll_offset_deg_  + rp_alpha  * roll_err);
-        mocap_pitch_offset_deg_ = gyro_util::wrapDeg180(mocap_pitch_offset_deg_ + rp_alpha  * pitch_err);
-        mocap_yaw_offset_deg_   = gyro_util::wrapDeg180(mocap_yaw_offset_deg_   + yaw_alpha * yaw_err);
+        // 4) yaw 偏置慢更新：用动捕提供绝对 yaw 约束，抵消陀螺 yaw 漂移。
+        // 注意：roll/pitch 的“安装偏置”建议固定（初始化一次即可）。
+        // 若把 roll/pitch 偏置也做自适应，会在控制过程中把瞬态误差学习成偏置，反而引入慢漂/绕圈。
+        const double yaw_alpha = 0.002; // tau ~ 10s @50Hz
+        const double yaw_err =
+            gyro_util::wrapDeg180((rpyG_raw.z() - rpyM_plat.z()) - mocap_yaw_offset_deg_);
+        mocap_yaw_offset_deg_ =
+            gyro_util::wrapDeg180(mocap_yaw_offset_deg_ + yaw_alpha * yaw_err);
 
         // 5) 动捕绝对目标（平台等价：pitch 反号） -> 陀螺目标（加偏置）
         Attitude target_plat{
@@ -441,7 +431,28 @@ void ControlModeManager::executeAttitudeControlMode(const SensorData& sensor_dat
         target_attitude_.pitch,
         target_attitude_.yaw
     );
-    attitude_controller_.setAttitudeInBalancing(euler_target);
+    // 用动捕角度参与外环“角度误差”计算（避免出现：陀螺认为到位、动捕仍有残差导致卡住）
+    // 内环仍然使用陀螺角速度（通过 other_av 留空，控制器内部读取 gyro_.getAngularVelocity()）
+    if (sensor_data.mocap.valid && mocap_offset_initialized_) {
+        Eigen::Quaterniond qM_raw = sensor_data.mocap.quaternion.normalized();
+        Eigen::Vector3d rpyM_plat = gyro_util::eulerZYX_degFromQuat(qM_raw); // [roll,pitch,yaw]
+        rpyM_plat.y() = -rpyM_plat.y();
+        rpyM_plat.z() = gyro_util::wrapDeg180(rpyM_plat.z());
+
+        Eigen::Vector3d rpy_meas_for_pid(
+            gyro_util::wrapDeg180(rpyM_plat.x() + mocap_roll_offset_deg_),
+            gyro_util::wrapDeg180(rpyM_plat.y() + mocap_pitch_offset_deg_),
+            gyro_util::wrapDeg180(rpyM_plat.z() + mocap_yaw_offset_deg_)
+        );
+
+        attitude_controller_.setAttitudeInBalancing(
+            euler_target,
+            std::nullopt,
+            GyroScope::Vec3{rpy_meas_for_pid.x(), rpy_meas_for_pid.y(), rpy_meas_for_pid.z()}
+        );
+    } else {
+        attitude_controller_.setAttitudeInBalancing(euler_target);
+    }
 }
 
 void ControlModeManager::executeDockingMode() {
